@@ -27,21 +27,17 @@ import {
   X, 
   Pizza, 
   TrendingUp, 
-  DollarSign,
-  AlertCircle,
-  Search,
-  Percent,
-  Calculator,
-  Copy
+  DollarSign, 
+  Search, 
+  Percent, 
+  Calculator 
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO FIREBASE ---
-// Em produção, os dados vêm das Variáveis de Ambiente da Vercel
 const firebaseConfig = process.env.NEXT_PUBLIC_FIREBASE_CONFIG 
   ? JSON.parse(process.env.NEXT_PUBLIC_FIREBASE_CONFIG) 
   : {};
 
-// Inicialização segura do Firebase (evita erro de múltiplas instâncias no Next.js)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -58,20 +54,20 @@ const UNIDADES = [
 
 const TAMANHOS = ['P', 'M', 'G', 'F', 'GG'];
 
-const formatCurrency = (val) => {
+const formatCurrency = (val: any) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 };
 
 // --- COMPONENTES DE UI ---
 
-const Card = ({ children, className = "" }) => (
+const Card = ({ children, className = "" }: any) => (
   <div className={`bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm ${className}`}>
     {children}
   </div>
 );
 
-const Button = ({ children, onClick, variant = "primary", className = "", disabled = false, icon: Icon }) => {
-  const variants = {
+const Button = ({ children, onClick, variant = "primary", className = "", disabled = false, icon: Icon }: any) => {
+  const variants: any = {
     primary: "bg-orange-600 hover:bg-orange-700 text-white shadow-sm shadow-orange-600/20",
     secondary: "bg-slate-100 hover:bg-slate-200 text-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100",
     danger: "bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400",
@@ -94,15 +90,15 @@ const Button = ({ children, onClick, variant = "primary", className = "", disabl
 // --- COMPONENTE PRINCIPAL ---
 
 export default function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [insumos, setInsumos] = useState([]);
-  const [sabores, setSabores] = useState([]);
+  const [insumos, setInsumos] = useState<any[]>([]);
+  const [sabores, setSabores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showInsumoModal, setShowInsumoModal] = useState(false);
   const [showSaborModal, setShowSaborModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
+  const [editingItem, setEditingItem] = useState<any>(null);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -132,7 +128,7 @@ export default function App() {
     return () => { unsubInsumos(); unsubSabores(); };
   }, [user]);
 
-  const handleSaveInsumo = async (data) => {
+  const handleSaveInsumo = async (data: any) => {
     if (!user) return;
     const colRef = collection(db, 'pizzarias', appId, 'users', user.uid, 'insumos');
     const u = UNIDADES.find(u => u.id === data.unidade_compra);
@@ -148,7 +144,7 @@ export default function App() {
     setEditingItem(null);
   };
 
-  const handleSaveSabor = async (data) => {
+  const handleSaveSabor = async (data: any) => {
     if (!user) return;
     const colRef = collection(db, 'pizzarias', appId, 'users', user.uid, 'sabores');
     if (editingItem) {
@@ -160,7 +156,7 @@ export default function App() {
     setEditingItem(null);
   };
 
-  const handleDelete = async (col, id) => {
+  const handleDelete = async (col: string, id: string) => {
     if (!window.confirm("Confirmar exclusão?")) return;
     await deleteDoc(doc(db, 'pizzarias', appId, 'users', user.uid, col, id));
   };
@@ -187,8 +183,8 @@ export default function App() {
           <InsumosList 
             insumos={insumos} 
             onAdd={() => { setEditingItem(null); setShowInsumoModal(true); }}
-            onEdit={(item) => { setEditingItem(item); setShowInsumoModal(true); }}
-            onDelete={(id) => handleDelete('insumos', id)}
+            onEdit={(item: any) => { setEditingItem(item); setShowInsumoModal(true); }}
+            onDelete={(id: string) => handleDelete('insumos', id)}
           />
         )}
         {activeTab === 'sabores' && (
@@ -196,8 +192,8 @@ export default function App() {
             sabores={sabores} 
             insumos={insumos}
             onAdd={() => { setEditingItem(null); setShowSaborModal(true); }}
-            onEdit={(item) => { setEditingItem(item); setShowSaborModal(true); }}
-            onDelete={(id) => handleDelete('sabores', id)}
+            onEdit={(item: any) => { setEditingItem(item); setShowSaborModal(true); }}
+            onDelete={(id: string) => handleDelete('sabores', id)}
           />
         )}
       </main>
@@ -208,7 +204,7 @@ export default function App() {
   );
 }
 
-function NavItem({ active, onClick, icon: Icon, label }) {
+function NavItem({ active, onClick, icon: Icon, label }: any) {
   return (
     <button onClick={onClick} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${active ? "bg-orange-50 text-orange-600 dark:bg-orange-900/20" : "text-slate-500 hover:bg-slate-50"}`}>
       <Icon size={20} /> {label}
@@ -216,12 +212,12 @@ function NavItem({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function Dashboard({ insumos, sabores }) {
+function Dashboard({ insumos, sabores }: any) {
   const stats = useMemo(() => {
     let totalPizzasConfiguradas = 0;
     let custoMedioTotal = 0;
     
-    sabores.forEach(s => {
+    sabores.forEach((s: any) => {
       Object.keys(s.tamanhos_config || {}).forEach(t => {
         totalPizzasConfiguradas++;
         custoMedioTotal += s.tamanhos_config[t].custo_total || 0;
@@ -250,7 +246,7 @@ function Dashboard({ insumos, sabores }) {
         <Card className="p-6">
           <h3 className="font-bold mb-4">Sugestões de Venda (Tamanho G)</h3>
           <div className="space-y-3">
-            {sabores.slice(0, 5).map(s => (
+            {sabores.slice(0, 5).map((s: any) => (
               <div key={s.id} className="flex justify-between items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                 <span className="font-medium">{s.nome}</span>
                 <span className="text-orange-600 font-bold">{formatCurrency(s.tamanhos_config?.G?.preco_sugerido || 0)}</span>
@@ -270,7 +266,7 @@ function Dashboard({ insumos, sabores }) {
   );
 }
 
-function StatCard({ icon: Icon, label, value }) {
+function StatCard({ icon: Icon, label, value }: any) {
   return (
     <Card className="p-4 flex flex-col gap-2">
       <div className="bg-slate-50 dark:bg-slate-800 p-2 w-fit rounded-lg"><Icon size={18} className="text-orange-600" /></div>
@@ -280,9 +276,9 @@ function StatCard({ icon: Icon, label, value }) {
   );
 }
 
-function InsumosList({ insumos, onAdd, onEdit, onDelete }) {
+function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
   const [search, setSearch] = useState("");
-  const filtered = insumos.filter(i => i.nome.toLowerCase().includes(search.toLowerCase()));
+  const filtered = insumos.filter((i: any) => i.nome.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-4">
@@ -317,7 +313,7 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }) {
                 <tr><th className="px-6 py-4">Insumo</th><th className="px-6 py-4">Compra</th><th className="px-6 py-4">Unidade</th><th className="px-6 py-4 text-right">Ações</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map(i => (
+                {filtered.map((i: any) => (
                   <tr key={i.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-6 py-4 font-semibold">{i.nome}</td>
                     <td className="px-6 py-4">{formatCurrency(i.preco_compra)}</td>
@@ -337,7 +333,7 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }) {
   );
 }
 
-function InsumoFormModal({ initialData, onClose, onSave }) {
+function InsumoFormModal({ initialData, onClose, onSave }: any) {
   const [form, setForm] = useState(initialData || { nome: '', preco_compra: '', quantidade_compra: '', unidade_compra: 'kg' });
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -362,9 +358,9 @@ function InsumoFormModal({ initialData, onClose, onSave }) {
   );
 }
 
-function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }) {
+function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
   const [search, setSearch] = useState("");
-  const filtered = useMemo(() => sabores.filter(s => s.nome.toLowerCase().includes(search.toLowerCase())), [sabores, search]);
+  const filtered = useMemo(() => sabores.filter((s: any) => s.nome.toLowerCase().includes(search.toLowerCase())), [sabores, search]);
 
   return (
     <div className="space-y-4">
@@ -381,7 +377,7 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }) {
       </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {filtered.map(s => (
+        {filtered.map((s: any) => (
           <Card key={s.id} className="p-6 hover:shadow-lg transition-all">
             <div className="flex justify-between items-start mb-4">
               <div>
@@ -412,13 +408,13 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }) {
   );
 }
 
-function SaborFormModal({ initialData, insumos, onClose, onSave }) {
+function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
   const [nome, setNome] = useState(initialData?.nome || '');
   const [margemLucro, setMargemLucro] = useState(initialData?.margem_lucro || 50);
   const [custoOperacional, setCustoOperacional] = useState(initialData?.custo_operacional || 5.00);
   const [activeSize, setActiveSize] = useState('G');
   
-  const [tamanhosConfig, setTamanhosConfig] = useState(initialData?.tamanhos_config || {
+  const [tamanhosConfig, setTamanhosConfig] = useState<any>(initialData?.tamanhos_config || {
     P: { ingredientes: [], embalagem: 1.50 },
     M: { ingredientes: [], embalagem: 1.80 },
     G: { ingredientes: [], embalagem: 2.20 },
@@ -428,7 +424,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }) {
 
   const currentConfig = tamanhosConfig[activeSize];
 
-  const updateSizeField = (field, value) => {
+  const updateSizeField = (field: string, value: any) => {
     setTamanhosConfig({
       ...tamanhosConfig,
       [activeSize]: { ...currentConfig, [field]: value }
@@ -440,29 +436,29 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }) {
     updateSizeField('ingredientes', next);
   };
 
-  const removeIngrediente = (idx) => {
-    const next = currentConfig.ingredientes.filter((_, i) => i !== idx);
+  const removeIngrediente = (idx: number) => {
+    const next = currentConfig.ingredientes.filter((_: any, i: number) => i !== idx);
     updateSizeField('ingredientes', next);
   };
 
-  const updateIngrediente = (idx, field, val) => {
+  const updateIngrediente = (idx: number, field: string, val: any) => {
     const next = [...currentConfig.ingredientes];
     next[idx][field] = val;
     updateSizeField('ingredientes', next);
   };
 
-  const copyFromSize = (sourceSize) => {
+  const copyFromSize = (sourceSize: string) => {
     if (sourceSize === activeSize) return;
     if (!window.confirm(`Copiar ingredientes de ${sourceSize} para ${activeSize}?`)) return;
     updateSizeField('ingredientes', JSON.parse(JSON.stringify(tamanhosConfig[sourceSize].ingredientes)));
   };
 
   const calculatedStats = useMemo(() => {
-    const results = {};
+    const results: any = {};
     TAMANHOS.forEach(t => {
       const config = tamanhosConfig[t];
-      const custoInsumos = config.ingredientes.reduce((acc, ing) => {
-        const insumo = insumos.find(i => i.id === ing.insumoId);
+      const custoInsumos = config.ingredientes.reduce((acc: number, ing: any) => {
+        const insumo = insumos.find((i: any) => i.id === ing.insumoId);
         if (!insumo) return acc;
         const mult = UNIDADES.find(u => u.id === ing.unidade)?.mult || 1;
         return acc + (Number(ing.quantidade) * mult * insumo.preco_por_unidade_base);
@@ -484,7 +480,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }) {
       nome,
       margem_lucro: Number(margemLucro),
       custo_operacional: Number(custoOperacional),
-      tamanhos_config: Object.keys(tamanhosConfig).reduce((acc, t) => {
+      tamanhos_config: Object.keys(tamanhosConfig).reduce((acc: any, t) => {
         acc[t] = { ...tamanhosConfig[t], ...calculatedStats[t] };
         return acc;
       }, {})
@@ -493,7 +489,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <Card className="w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 shadow-2xl">
+      <Card className="w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 shadow-2xl">
         <div className="p-6 border-b dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900 shrink-0">
           <h3 className="text-xl font-black uppercase text-orange-600">Configurar Sabor: {nome || '...'}</h3>
           <button onClick={onClose}><X size={20}/></button>
@@ -537,11 +533,11 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }) {
               </div>
 
               <div className="space-y-2">
-                {currentConfig.ingredientes.map((ing, idx) => (
+                {currentConfig.ingredientes.map((ing: any, idx: number) => (
                   <div key={idx} className="flex gap-2 items-center p-3 bg-white dark:bg-slate-900 rounded-xl border dark:border-slate-800 shadow-sm">
                     <select className="flex-1 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-sm" value={ing.insumoId} onChange={e => updateIngrediente(idx, 'insumoId', e.target.value)}>
                       <option value="">Ingrediente...</option>
-                      {insumos.map(i => <option key={i.id} value={i.id}>{i.nome}</option>)}
+                      {insumos.map((i: any) => <option key={i.id} value={i.id}>{i.nome}</option>)}
                     </select>
                     <input type="number" className="w-20 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-sm font-bold text-center" value={ing.quantidade} onChange={e => updateIngrediente(idx, 'quantidade', e.target.value)} />
                     <select className="w-16 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-[10px] font-black uppercase" value={ing.unidade} onChange={e => updateIngrediente(idx, 'unidade', e.target.value)}>
