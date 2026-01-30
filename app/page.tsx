@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { initializeApp, getApps } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
   signInAnonymously, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  User
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -14,7 +15,8 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  onSnapshot 
+  onSnapshot,
+  query
 } from 'firebase/firestore';
 import { 
   LayoutDashboard, 
@@ -33,11 +35,21 @@ import {
   Calculator 
 } from 'lucide-react';
 
-// --- CONFIGURAÇÃO FIREBASE ---
-const firebaseConfig = process.env.NEXT_PUBLIC_FIREBASE_CONFIG 
-  ? JSON.parse(process.env.NEXT_PUBLIC_FIREBASE_CONFIG) 
-  : {};
+// --- CONFIGURAÇÃO FIREBASE SEGURA ---
+const getFirebaseConfig = () => {
+  const envConfig = process.env.NEXT_PUBLIC_FIREBASE_CONFIG;
+  if (!envConfig) return {};
+  try {
+    // Tenta limpar caso o usuário tenha colado com "const firebaseConfig ="
+    const cleanJson = envConfig.includes('=') ? envConfig.split('=')[1].trim().replace(/;$/, '') : envConfig;
+    return JSON.parse(cleanJson);
+  } catch (e) {
+    console.error("Erro ao ler NEXT_PUBLIC_FIREBASE_CONFIG. Verifique se colou apenas o conteúdo entre { }", e);
+    return {};
+  }
+};
 
+const firebaseConfig = getFirebaseConfig();
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -52,7 +64,6 @@ const UNIDADES = [
   { id: 'un', label: 'Unidade (UN)', mult: 1 },
 ];
 
-// Ordem solicitada: P, M, G, F, GG
 const TAMANHOS = ['P', 'M', 'G', 'F', 'GG'];
 
 const formatCurrency = (val: number | any) => {
@@ -61,7 +72,12 @@ const formatCurrency = (val: number | any) => {
 
 // --- COMPONENTES DE UI ---
 
-const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+interface CardProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+const Card = ({ children, className = "" }: CardProps) => (
   <div className={`bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm ${className}`}>
     {children}
   </div>
@@ -91,7 +107,7 @@ const Button = ({ children, onClick, variant = "primary", className = "", disabl
 // --- COMPONENTE PRINCIPAL ---
 
 export default function App() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [insumos, setInsumos] = useState<any[]>([]);
   const [sabores, setSabores] = useState<any[]>([]);
@@ -108,7 +124,7 @@ export default function App() {
       } catch (err) { console.error("Erro auth:", err); }
     };
     initAuth();
-    const unsubscribe = onAuthStateChanged(auth, setUser);
+    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsubscribe();
   }, []);
 
@@ -245,7 +261,7 @@ function Dashboard({ insumos, sabores }: any) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">
-          <h3 className="font-bold mb-4">Sugestões de Venda (Tamanho G)</h3>
+          <h3 className="font-bold mb-4 text-orange-600">Sugestões de Venda (Tamanho G)</h3>
           <div className="space-y-3">
             {sabores.slice(0, 5).map((s: any) => (
               <div key={s.id} className="flex justify-between items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
@@ -253,13 +269,14 @@ function Dashboard({ insumos, sabores }: any) {
                 <span className="text-orange-600 font-bold">{formatCurrency(s.tamanhos_config?.G?.preco_sugerido || 0)}</span>
               </div>
             ))}
+            {sabores.length === 0 && <p className="text-center text-slate-400 text-sm py-4">Nenhum sabor cadastrado ainda.</p>}
           </div>
         </Card>
         <Card className="p-6 text-center flex flex-col items-center justify-center">
           <TrendingUp size={32} className="text-blue-500 mb-2"/> 
-          <h3 className="font-bold">CMV Didoka Pizza</h3>
+          <h3 className="font-bold">Didoka Pizza Analytics</h3>
           <p className="text-sm text-slate-500 mt-2">
-            Mantenha os custos operacionais atualizados para garantir a saúde financeira da pizzaria.
+            O seu CMV automático atualiza assim que você altera o preço de um insumo.
           </p>
         </Card>
       </div>
@@ -284,7 +301,7 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Estoque de Insumos</h2>
+        <h2 className="text-2xl font-bold">Insumos</h2>
         <Button onClick={onAdd} icon={Plus}>Novo Insumo</Button>
       </div>
 
@@ -293,7 +310,7 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             className="w-full bg-slate-50 dark:bg-slate-800 pl-10 pr-4 py-2.5 rounded-lg text-sm border-none focus:ring-2 focus:ring-orange-500 transition-all outline-none" 
-            placeholder="Buscar ingrediente pelo nome..." 
+            placeholder="Buscar ingrediente..." 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
           />
@@ -301,15 +318,11 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
       </Card>
 
       {insumos.length === 0 ? (
-        <div className="py-20 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
-          <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-full mb-6">
-            <Package size={48} className="text-slate-200 dark:text-slate-700" />
-          </div>
+        <div className="py-20 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+          <Package size={48} className="text-slate-200 dark:text-slate-700 mb-4" />
           <h3 className="text-slate-600 dark:text-slate-300 font-bold text-lg">Estoque Vazio</h3>
-          <p className="text-slate-400 text-sm mb-8 max-w-xs mx-auto">
-            Você ainda não cadastrou nenhum ingrediente.
-          </p>
-          <Button onClick={onAdd} icon={Plus} className="px-8">Adicionar Insumo</Button>
+          <p className="text-slate-400 text-sm mb-6 max-w-xs">Cadastre os ingredientes básicos primeiro.</p>
+          <Button onClick={onAdd} icon={Plus} className="px-8">Adicionar Primeiro Insumo</Button>
         </div>
       ) : (
         <Card className="overflow-hidden">
@@ -345,32 +358,32 @@ function InsumoFormModal({ initialData, onClose, onSave }: any) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95">
         <div className="p-6 flex justify-between border-b dark:border-slate-800">
-          <h3 className="text-lg font-bold">Cadastro de Insumo</h3>
+          <h3 className="text-lg font-bold">Ficha de Insumo</h3>
           <button onClick={onClose}><X size={20}/></button>
         </div>
         <div className="p-6 space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nome</label>
-            <input className="w-full border dark:border-slate-700 bg-transparent p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-orange-500" placeholder="Ex: Farinha" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} />
+            <label className="text-xs font-bold text-slate-400 uppercase">Nome do Ingrediente</label>
+            <input className="w-full border dark:border-slate-700 bg-transparent p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-orange-500" placeholder="Ex: Queijo Muçarela" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Preço (R$)</label>
+              <label className="text-xs font-bold text-slate-400 uppercase">Preço Pago (R$)</label>
               <input type="number" className="w-full border dark:border-slate-700 bg-transparent p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-orange-500" placeholder="0.00" value={form.preco_compra} onChange={e => setForm({...form, preco_compra: e.target.value})} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Qtd</label>
+              <label className="text-xs font-bold text-slate-400 uppercase">Qtd Comprada</label>
               <input type="number" className="w-full border dark:border-slate-700 bg-transparent p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-orange-500" placeholder="1" value={form.quantidade_compra} onChange={e => setForm({...form, quantidade_compra: e.target.value})} />
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Unidade</label>
+            <label className="text-xs font-bold text-slate-400 uppercase">Unidade de Medida</label>
             <select className="w-full border dark:border-slate-700 bg-transparent p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-orange-500" value={form.unidade_compra} onChange={e => setForm({...form, unidade_compra: e.target.value})}>
               {UNIDADES.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
           </div>
         </div>
-        <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-2 rounded-b-xl"><Button variant="ghost" onClick={onClose}>Cancelar</Button><Button onClick={() => onSave(form)} icon={Save}>Salvar</Button></div>
+        <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-2 rounded-b-xl"><Button variant="ghost" onClick={onClose}>Cancelar</Button><Button onClick={() => onSave(form)} icon={Save}>Salvar Insumo</Button></div>
       </Card>
     </div>
   );
@@ -383,7 +396,7 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Fichas Técnicas</h2>
+        <h2 className="text-2xl font-bold">Sabores</h2>
         <Button onClick={onAdd} icon={Plus}>Novo Sabor</Button>
       </div>
 
@@ -392,7 +405,7 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             className="w-full bg-slate-50 dark:bg-slate-800 pl-10 pr-4 py-2.5 rounded-lg text-sm border-none focus:ring-2 focus:ring-orange-500 transition-all outline-none" 
-            placeholder="Buscar sabor pelo nome..." 
+            placeholder="Pesquisar sabor..." 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
           />
@@ -401,14 +414,14 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {filtered.map((s: any) => (
-          <Card key={s.id} className="p-6 hover:shadow-lg transition-all group">
+          <Card key={s.id} className="p-6 hover:shadow-lg transition-all group border-slate-200">
             <div className="flex justify-between items-start mb-4">
               <div className="flex flex-col gap-1">
                 <h3 className="text-xl font-black text-orange-600 uppercase tracking-tight">{s.nome}</h3>
                 <div className="flex flex-wrap gap-1.5 mt-3">
                    {TAMANHOS.map(t => (
                      s.tamanhos_config?.[t] && 
-                     <div key={t} className="flex flex-col bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 px-3 py-1.5 rounded-lg min-w-[60px] text-center">
+                     <div key={t} className="flex flex-col bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 px-3 py-1.5 rounded-lg min-w-[60px] text-center shadow-sm">
                        <span className="text-[10px] text-slate-400 font-bold uppercase">{t}</span>
                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{formatCurrency(s.tamanhos_config[t].preco_sugerido)}</span>
                      </div>
@@ -421,18 +434,17 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
               </div>
             </div>
             <div className="pt-4 border-t dark:border-slate-800 flex justify-between items-center text-[10px] uppercase font-bold tracking-wider">
-              <span className="text-slate-500">Margem: <span className="text-emerald-500">{s.margem_lucro}%</span></span>
-              <span className="text-slate-500">Operacional: <span className="text-blue-500">{formatCurrency(s.custo_operacional)}</span></span>
+              <span className="text-slate-500">Lucro Alvo: <span className="text-emerald-500">{s.margem_lucro}%</span></span>
+              <span className="text-slate-500">Fixo Operacional: <span className="text-blue-500">{formatCurrency(s.custo_operacional)}</span></span>
             </div>
           </Card>
         ))}
         {sabores.length === 0 && (
-          <div className="col-span-full py-20 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
-            <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-full mb-6">
-              <Pizza size={48} className="text-slate-200 dark:text-slate-800" />
-            </div>
-            <h3 className="text-slate-600 dark:text-slate-300 font-bold text-lg">Sem Fichas</h3>
-            <Button onClick={onAdd} icon={Plus} className="mt-4 px-8">Criar Primeiro Sabor</Button>
+          <div className="col-span-full py-20 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+            <Pizza size={48} className="text-slate-200 dark:text-slate-800 mb-4" />
+            <h3 className="text-slate-600 dark:text-slate-300 font-bold text-lg">Sem Fichas Técnicas</h3>
+            <p className="text-slate-400 text-sm mb-6">Comece combinando seus insumos aqui.</p>
+            <Button onClick={onAdd} icon={Plus} className="px-8">Criar Primeiro Sabor</Button>
           </div>
         )}
       </div>
@@ -481,7 +493,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
 
   const copyFromSize = (sourceSize: string) => {
     if (sourceSize === activeSize) return;
-    if (!window.confirm(`Copiar ingredientes de ${sourceSize} para ${activeSize}?`)) return;
+    if (!window.confirm(`Copiar ficha do tamanho ${sourceSize} para ${activeSize}?`)) return;
     updateSizeField('ingredientes', JSON.parse(JSON.stringify(tamanhosConfig[sourceSize].ingredientes)));
   };
 
@@ -523,29 +535,34 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <Card className="w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 shadow-2xl">
         <div className="p-6 border-b dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900 shrink-0">
-          <h3 className="text-xl font-black uppercase text-orange-600">Configurar Sabor: {nome || '...'}</h3>
-          <button onClick={onClose}><X size={20}/></button>
+          <h3 className="text-xl font-black uppercase text-orange-600">Ficha Técnica: {nome || 'Sabor Novo'}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all"><X size={20}/></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border dark:border-slate-800 shadow-inner">
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Sabor</label>
-              <input className="w-full border-none bg-white dark:bg-slate-900 p-2.5 rounded-lg focus:ring-2 focus:ring-orange-500 shadow-sm outline-none" value={nome} onChange={e => setNome(e.target.value)} />
+              <input className="w-full border-none bg-white dark:bg-slate-900 p-2.5 rounded-lg focus:ring-2 focus:ring-orange-500 shadow-sm" value={nome} onChange={e => setNome(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Operacional (R$)</label>
-              <input type="number" className="w-full border-none bg-white dark:bg-slate-900 p-2.5 rounded-lg font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 shadow-sm outline-none" value={custoOperacional} onChange={e => setCustoOperacional(e.target.value)} />
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Custo Operacional (R$)</label>
+              <input type="number" className="w-full border-none bg-white dark:bg-slate-900 p-2.5 rounded-lg font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 shadow-sm" value={custoOperacional} onChange={e => setCustoOperacional(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Margem (%)</label>
-              <input type="number" className="w-full border-none bg-white dark:bg-slate-900 p-2.5 rounded-lg font-bold text-emerald-600 focus:ring-2 focus:ring-emerald-500 shadow-sm outline-none" value={margemLucro} onChange={e => setMargemLucro(e.target.value)} />
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Margem de Lucro (%)</label>
+              <input type="number" className="w-full border-none bg-white dark:bg-slate-900 p-2.5 rounded-lg font-bold text-emerald-600 focus:ring-2 focus:ring-emerald-500 shadow-sm" value={margemLucro} onChange={e => setMargemLucro(e.target.value)} />
             </div>
           </div>
 
+          {/* Seletor de Tamanhos - Corrigido para ser apenas letras */}
           <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full md:w-fit overflow-x-auto shadow-inner">
             {TAMANHOS.map(t => (
-              <button key={t} onClick={() => setActiveSize(t)} className={`flex-1 md:flex-none px-10 py-2.5 rounded-lg font-black text-sm transition-all ${activeSize === t ? "bg-white dark:bg-slate-700 shadow-md text-orange-600 scale-105" : "text-slate-400 hover:text-slate-600"}`}>
+              <button 
+                key={t} 
+                onClick={() => setActiveSize(t)} 
+                className={`flex-1 md:flex-none px-10 py-2.5 rounded-lg font-black text-sm transition-all ${activeSize === t ? "bg-white dark:bg-slate-700 shadow-md text-orange-600 scale-105" : "text-slate-400 hover:text-slate-600"}`}
+              >
                 {t}
               </button>
             ))}
@@ -554,21 +571,21 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-4">
               <div className="flex justify-between items-center">
-                <h4 className="font-black uppercase tracking-widest text-xs text-slate-500">Montagem {activeSize}</h4>
+                <h4 className="font-black uppercase tracking-widest text-xs text-slate-500">Ingredientes - Tamanho {activeSize}</h4>
                 <div className="flex gap-2">
-                  <span className="text-[9px] font-bold text-slate-400 self-center uppercase">Copiar:</span>
+                  <span className="text-[9px] font-bold text-slate-400 self-center uppercase">Copiar de:</span>
                   <div className="flex gap-1">
                     {TAMANHOS.filter(t => t !== activeSize).map(t => (
                       <button key={t} onClick={() => copyFromSize(t)} className="px-2 py-1 bg-white dark:bg-slate-800 border rounded text-[10px] font-bold hover:bg-orange-50 transition-all">{t}</button>
                     ))}
                   </div>
-                  <Button variant="secondary" onClick={addIngrediente} icon={Plus} className="text-[10px] h-7 px-3">Add</Button>
+                  <Button variant="secondary" onClick={addIngrediente} icon={Plus} className="text-[10px] h-7 px-3">Add Item</Button>
                 </div>
               </div>
 
               <div className="space-y-2">
                 {currentConfig.ingredientes.map((ing: any, idx: number) => (
-                  <div key={idx} className="flex gap-2 items-center p-3 bg-white dark:bg-slate-900 rounded-xl border dark:border-slate-800 shadow-sm">
+                  <div key={idx} className="flex gap-2 items-center p-3 bg-white dark:bg-slate-900 rounded-xl border dark:border-slate-800 shadow-sm hover:border-orange-200 transition-all">
                     <select className="flex-1 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-sm outline-none" value={ing.insumoId} onChange={e => updateIngrediente(idx, 'insumoId', e.target.value)}>
                       <option value="">Ingrediente...</option>
                       {insumos.map((i: any) => <option key={i.id} value={i.id}>{i.nome}</option>)}
@@ -577,32 +594,33 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
                     <select className="w-16 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-[10px] font-black uppercase outline-none" value={ing.unidade} onChange={e => updateIngrediente(idx, 'unidade', e.target.value)}>
                       {UNIDADES.map(u => <option key={u.id} value={u.id}>{u.id.toUpperCase()}</option>)}
                     </select>
-                    <button onClick={() => removeIngrediente(idx)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                    <button onClick={() => removeIngrediente(idx)} className="text-slate-300 hover:text-red-500 transition-all"><Trash2 size={18}/></button>
                   </div>
                 ))}
-                {currentConfig.ingredientes.length === 0 && <p className="text-center py-10 text-slate-400 italic text-sm border-2 border-dashed rounded-xl">Nenhum item adicionado.</p>}
+                {currentConfig.ingredientes.length === 0 && <p className="text-center py-10 text-slate-400 italic text-sm border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl">Sem ingredientes definidos para este tamanho.</p>}
               </div>
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border dark:border-slate-800 flex justify-between items-center">
-                <label className="text-[10px] font-black text-slate-500 uppercase">Caixa ({activeSize})</label>
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border dark:border-slate-800 flex justify-between items-center shadow-inner">
+                <label className="text-[10px] font-black text-slate-500 uppercase">Custo da Caixa ({activeSize})</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">R$</span>
-                  <input type="number" className="pl-8 pr-3 py-2 w-32 bg-white dark:bg-slate-900 border-none rounded-lg text-sm font-black outline-none focus:ring-1 focus:ring-orange-500 shadow-sm" value={currentConfig.embalagem} onChange={e => updateSizeField('embalagem', e.target.value)} />
+                  <input type="number" className="pl-8 pr-3 py-2 w-32 bg-white dark:bg-slate-900 border-none rounded-lg text-sm font-black outline-none focus:ring-2 focus:ring-orange-500 shadow-sm" value={currentConfig.embalagem} onChange={e => updateSizeField('embalagem', e.target.value)} />
                 </div>
               </div>
             </div>
 
-            <Card className="p-6 bg-slate-900 text-white border-none shadow-2xl">
+            <Card className="p-6 bg-slate-900 text-white border-none shadow-2xl relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-4 opacity-5"><Calculator size={64}/></div>
               <h4 className="font-black mb-6 text-center border-b border-slate-800 pb-3 uppercase text-[10px] tracking-[0.3em] text-orange-500">RESUMO {activeSize}</h4>
               <div className="space-y-4">
-                <div className="flex justify-between items-center text-xs text-slate-500 uppercase font-bold"><span>Insumos</span><span>{formatCurrency(calculatedStats[activeSize].custo_insumos)}</span></div>
-                <div className="flex justify-between items-center text-xs text-slate-500 uppercase font-bold"><span>Operacional</span><span>{formatCurrency(Number(custoOperacional))}</span></div>
+                <div className="flex justify-between items-center text-xs text-slate-500 uppercase font-bold"><span>Total Insumos</span><span>{formatCurrency(calculatedStats[activeSize].custo_insumos)}</span></div>
+                <div className="flex justify-between items-center text-xs text-slate-500 uppercase font-bold"><span>Taxa Operacional</span><span>{formatCurrency(Number(custoOperacional))}</span></div>
                 <div className="pt-4 border-t border-slate-800 flex flex-col items-center">
-                  <span className="text-[9px] text-slate-500 font-black uppercase mb-1">Custo Final (CMV)</span>
+                  <span className="text-[9px] text-slate-500 font-black uppercase mb-1">Custo Produção (CMV)</span>
                   <span className="text-3xl font-black text-orange-500">{formatCurrency(calculatedStats[activeSize].custo_total)}</span>
                 </div>
                 <div className="pt-8 border-t border-dashed border-slate-700 text-center">
-                  <div className="text-[10px] text-slate-400 font-black uppercase mb-2 tracking-[0.2em]">VENDA SUGERIDA</div>
-                  <div className="text-5xl font-black text-emerald-400 tracking-tighter">{formatCurrency(calculatedStats[activeSize].preco_sugerido)}</div>
+                  <div className="text-[10px] text-slate-400 font-black uppercase mb-2 tracking-[0.2em]">SUGESTÃO DE VENDA</div>
+                  <div className="text-5xl font-black text-emerald-400 tracking-tighter drop-shadow-md">{formatCurrency(calculatedStats[activeSize].preco_sugerido)}</div>
                 </div>
               </div>
             </Card>
@@ -619,8 +637,8 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
             ))}
           </div>
           <div className="flex gap-3">
-            <Button variant="ghost" className="font-bold" onClick={onClose}>Sair</Button>
-            <Button onClick={handleFinalSave} icon={Save} className="px-10 h-12 font-black uppercase tracking-widest shadow-lg">Salvar</Button>
+            <Button variant="ghost" className="font-bold" onClick={onClose}>Cancelar</Button>
+            <Button onClick={handleFinalSave} icon={Save} className="px-10 h-12 font-black uppercase tracking-widest shadow-lg">Salvar Ficha</Button>
           </div>
         </div>
       </Card>
