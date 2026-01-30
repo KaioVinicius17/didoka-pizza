@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO FIREBASE DIRETA ---
+// Kaio, preencha os valores abaixo com os dados do seu Firebase Console
 const firebaseConfig = {
   apiKey: "AIzaSyCJPDGcKvWObK9b70TJaqWwq48s3wHiYqM",
   authDomain: "didoka-pizza.firebaseapp.com",
@@ -56,7 +57,7 @@ const firebaseConfig = {
   measurementId: "G-NBJYE1WG4Y"
 };
 
-// Inicialização segura
+// Inicialização segura do Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -189,7 +190,7 @@ function LoginScreen({ onLogged }: { onLogged: () => void }) {
             <Pizza size={48} />
           </div>
           <h1 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter text-center leading-none">Didoka Pizza</h1>
-          <p className="text-slate-400 text-xs font-black uppercase tracking-[0.3em] mt-3">Gestão Profissional</p>
+          <p className="text-slate-400 text-xs font-black uppercase tracking-[0.3em] mt-3">Gestão de CMV Profissional</p>
         </div>
 
         <div className="space-y-4">
@@ -230,12 +231,12 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   
-  // FIX: Estado declarado no topo para evitar erro de referência
+  // Estados para modais e edição (declarados no topo para evitar erro de build)
   const [editingItem, setEditingItem] = useState<any>(null);
   const [showInsumoModal, setShowInsumoModal] = useState(false);
   const [showSaborModal, setShowSaborModal] = useState(false);
 
-  // Efeito para alternar tema
+  // Efeito para alternar classes do tema no <html>
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -260,7 +261,7 @@ export default function App() {
     const unsubInsumos = onSnapshot(insumosRef, (snap) => {
       setInsumos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Insumo)));
     }, (err) => {
-       if (err.code === 'permission-denied') setError("Verifique as permissões do Firebase.");
+       if (err.code === 'permission-denied') setError("Verifique as regras de segurança no Firebase Console.");
     });
 
     const unsubSabores = onSnapshot(saboresRef, (snap) => {
@@ -277,7 +278,7 @@ export default function App() {
     const precoBase = Number(data.preco_compra) / (Number(data.quantidade_compra) * (u?.mult || 1));
     const finalData = { ...data, preco_por_unidade_base: precoBase };
 
-    if (editingItem) {
+    if (editingItem && editingItem.id) {
       await updateDoc(doc(db, 'pizzarias', appId, 'users', user.uid, 'insumos', editingItem.id), finalData);
     } else {
       await addDoc(colRef, finalData);
@@ -289,7 +290,7 @@ export default function App() {
   const handleSaveSabor = async (data: any) => {
     if (!user) return;
     const colRef = collection(db, 'pizzarias', appId, 'users', user.uid, 'sabores');
-    if (editingItem) {
+    if (editingItem && editingItem.id) {
       await updateDoc(doc(db, 'pizzarias', appId, 'users', user.uid, 'sabores', editingItem.id), data);
     } else {
       await addDoc(colRef, data);
@@ -299,7 +300,7 @@ export default function App() {
   };
 
   const handleDelete = async (col: string, id: string) => {
-    if (!window.confirm("Eliminar permanentemente?")) return;
+    if (!window.confirm("Pretende eliminar este item permanentemente?")) return;
     if (!user) return; 
     await deleteDoc(doc(db, 'pizzarias', appId, 'users', user.uid, col, id));
   };
@@ -315,14 +316,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col md:flex-row transition-colors duration-300">
-      {/* Sidebar - Fixa e de Altura Total */}
-      <nav className="w-full md:w-80 bg-white dark:bg-slate-900 border-b md:border-r border-slate-200 dark:border-slate-800 p-8 shrink-0 shadow-2xl z-30 flex flex-col md:h-screen md:sticky md:top-0">
+      
+      {/* Sidebar - Altura Total Fixa */}
+      <nav className="w-full md:w-80 bg-white dark:bg-slate-900 border-b md:border-r border-slate-200 dark:border-slate-800 p-8 shrink-0 shadow-2xl z-30 flex flex-col h-screen sticky top-0">
         <div className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-4">
             <div className="bg-orange-600 p-3 rounded-[20px] text-white shadow-xl shadow-orange-600/30"><Pizza size={30} /></div>
             <div>
               <h1 className="font-black text-2xl tracking-tighter text-slate-800 dark:text-white uppercase leading-none">Didoka</h1>
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 block">Pizza Analytics</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 block tracking-widest opacity-60">Control Panel</span>
             </div>
           </div>
           <button 
@@ -335,7 +337,7 @@ export default function App() {
 
         <div className="space-y-3 flex-1 overflow-y-auto pr-2 scrollbar-hide">
           <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} label="Dashboard" />
-          <NavItem active={activeTab === 'insumos'} onClick={() => setActiveTab('insumos')} icon={Package} label="Insumos" />
+          <NavItem active={activeTab === 'insumos'} onClick={() => setActiveTab('insumos')} icon={Package} label="Stock Insumos" />
           <NavItem active={activeTab === 'sabores'} onClick={() => setActiveTab('sabores')} icon={ClipboardList} label="Fichas Técnicas" />
         </div>
 
@@ -348,7 +350,7 @@ export default function App() {
              onClick={() => signOut(auth)}
              className="w-full flex items-center gap-4 px-6 py-4 rounded-[20px] text-[10px] font-black text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all uppercase tracking-widest"
            >
-             <LogOut size={20} /> Sair
+             <LogOut size={20} /> Sair do Sistema
            </button>
         </div>
       </nav>
@@ -385,7 +387,7 @@ export default function App() {
 function NavItem({ active, onClick, icon: Icon, label }: any) {
   return (
     <button onClick={onClick} className={`w-full flex items-center gap-5 px-6 py-5 rounded-[24px] text-xs font-black transition-all uppercase tracking-widest ${active ? "bg-orange-600 text-white shadow-xl shadow-orange-600/30" : "text-slate-500 hover:bg-white dark:hover:bg-slate-800 shadow-sm"}`}>
-      <Icon size={22} /> {label}
+      <Icon size={22} className={active ? "text-white" : "text-slate-400"} /> {label}
     </button>
   );
 }
@@ -411,7 +413,7 @@ function Dashboard({ insumos, sabores }: { insumos: Insumo[], sabores: Sabor[] }
   return (
     <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <header>
-        <h2 className="text-5xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Didoka Dashboard</h2>
+        <h2 className="text-5xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Dashboard</h2>
         <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] mt-4">Gestão de CMV em Tempo Real</p>
       </header>
 
@@ -424,7 +426,7 @@ function Dashboard({ insumos, sabores }: { insumos: Insumo[], sabores: Sabor[] }
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <Card className="p-10 border-none shadow-xl bg-white dark:bg-slate-900">
-          <h3 className="font-black text-xl mb-10 flex items-center gap-4 text-orange-600 uppercase tracking-widest border-b dark:border-slate-800 pb-6"><TrendingUp size={28}/> Sugestão de Venda (TAM G)</h3>
+          <h3 className="font-black text-xl mb-10 flex items-center gap-4 text-orange-600 uppercase tracking-widest border-b dark:border-slate-800 pb-6"><TrendingUp size={28}/> Rentabilidade (TAM G)</h3>
           <div className="space-y-4">
             {sabores.slice(0, 5).map((s) => (
               <div key={s.id} className="flex justify-between items-center p-6 rounded-[32px] bg-slate-50 dark:bg-slate-800/30 border dark:border-slate-800 transition-all hover:scale-[1.01]">
@@ -437,8 +439,8 @@ function Dashboard({ insumos, sabores }: { insumos: Insumo[], sabores: Sabor[] }
         <Card className="p-10 flex flex-col items-center justify-center text-center bg-orange-600 text-white border-none shadow-2xl relative overflow-hidden group rounded-[48px]">
           <div className="absolute -top-20 -right-20 opacity-10 group-hover:rotate-45 transition-transform duration-700"><Calculator size={300} /></div>
           <div className="bg-white/20 p-8 rounded-full mb-8 shadow-inner relative z-10"><Pizza size={64} /></div>
-          <h3 className="font-black text-3xl uppercase mb-4 tracking-tight leading-none">Cálculo Preciso</h3>
-          <p className="text-orange-50 font-bold max-w-xs leading-relaxed text-lg opacity-90 uppercase text-[10px] tracking-[0.2em]">O sistema recalcula automaticamente o seu lucro ao atualizar qualquer preço.</p>
+          <h3 className="font-black text-3xl uppercase mb-4 tracking-tight leading-none text-white">Didoka Intelligence</h3>
+          <p className="text-orange-50 font-bold max-w-xs leading-relaxed text-sm opacity-90 uppercase tracking-[0.2em]">O sistema recalcula automaticamente o seu lucro ao atualizar qualquer preço base.</p>
         </Card>
       </div>
     </div>
@@ -460,10 +462,10 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
   const filtered = insumos.filter((i: any) => i.nome.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="max-w-7xl mx-auto space-y-10 animate-in fade-in duration-700">
+    <div className="max-w-7xl mx-auto space-y-10 animate-in fade-in duration-700 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8">
         <h2 className="text-5xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Insumos</h2>
-        <Button onClick={onAdd} icon={Plus} className="w-full sm:w-auto h-16 px-12 text-sm">Novo Item</Button>
+        <Button onClick={onAdd} icon={Plus} className="w-full sm:w-auto h-16 px-12 text-sm">Adicionar Insumo</Button>
       </div>
 
       <Card className="p-5 border-none shadow-xl bg-white dark:bg-slate-900 rounded-[32px]">
@@ -471,7 +473,7 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={26} />
           <input 
             className="w-full bg-slate-50 dark:bg-slate-950/50 pl-16 pr-8 py-6 rounded-3xl text-lg border-none focus:ring-2 focus:ring-orange-500 outline-none font-black text-slate-700 dark:text-white shadow-inner transition-all uppercase tracking-tight" 
-            placeholder="O que está a faltar?" 
+            placeholder="O que está a procurar?" 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
           />
@@ -479,10 +481,10 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
       </Card>
 
       {insumos.length === 0 ? (
-        <div className="py-32 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-[64px] border-4 border-dashed border-slate-100 dark:border-slate-800 p-10">
+        <div className="flex-1 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-[64px] border-4 border-dashed border-slate-100 dark:border-slate-800 p-10 min-h-[400px]">
           <Package size={100} className="text-slate-100 dark:text-slate-800 mb-8" />
-          <h3 className="text-slate-700 dark:text-slate-300 font-black text-3xl uppercase tracking-widest">Sem Insumos</h3>
-          <Button onClick={onAdd} icon={Plus} className="px-16 h-20 text-base shadow-2xl">Adicionar</Button>
+          <h3 className="text-slate-700 dark:text-slate-300 font-black text-3xl uppercase tracking-widest">Stock Vazio</h3>
+          <Button onClick={onAdd} icon={Plus} className="px-16 h-20 text-base shadow-2xl">Começar Agora</Button>
         </div>
       ) : (
         <Card className="overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-900 rounded-[48px]">
@@ -492,7 +494,7 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
                 <tr>
                   <th className="px-12 py-8">Designação</th>
                   <th className="px-12 py-8 text-center">Compra</th>
-                  <th className="px-12 py-8 text-center">Unitário Base</th>
+                  <th className="px-12 py-8 text-center">Custo Base</th>
                   <th className="px-12 py-8 text-right">Gerir</th>
                 </tr>
               </thead>
@@ -550,13 +552,13 @@ function InsumoFormModal({ initialData, onClose, onSave }: any) {
           </div>
           <div className="space-y-4 text-center">
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Unidade</label>
-            <select className="w-full bg-slate-50 dark:bg-slate-950 p-6 rounded-[24px] outline-none focus:ring-2 focus:ring-orange-500 shadow-inner border-none font-black text-center text-lg tracking-[0.2em]" value={form.unidade_compra} onChange={e => setForm({...form, unidade_compra: e.target.value})}>
+            <select className="w-full bg-slate-50 dark:bg-slate-950 p-6 rounded-[24px] outline-none focus:ring-2 focus:ring-orange-500 shadow-inner border-none font-black text-center text-lg tracking-[0.2em] appearance-none" value={form.unidade_compra} onChange={e => setForm({...form, unidade_compra: e.target.value})}>
               {UNIDADES.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
           </div>
         </div>
         <div className="p-10 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-5 border-t dark:border-slate-800">
-          <Button variant="ghost" onClick={onClose} className="px-10 font-black">Sair</Button>
+          <Button variant="ghost" onClick={onClose} className="px-10 font-black">Descartar</Button>
           <Button onClick={() => onSave(form)} icon={Save} className="px-16 h-20 text-lg shadow-2xl">Gravar Insumo</Button>
         </div>
       </Card>
@@ -569,10 +571,10 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
   const filtered = useMemo(() => sabores.filter((s: any) => s.nome.toLowerCase().includes(search.toLowerCase())), [sabores, search]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in duration-700">
+    <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in duration-700 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8">
         <h2 className="text-5xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Fichas Técnicas</h2>
-        <Button onClick={onAdd} icon={Plus} className="w-full sm:w-auto h-16 px-12 text-sm">Nova Pizza</Button>
+        <Button onClick={onAdd} icon={Plus} className="w-full sm:w-auto h-16 px-12 text-sm">Nova Receita</Button>
       </div>
 
       <Card className="p-5 border-none shadow-xl bg-white dark:bg-slate-900 rounded-[32px]">
@@ -580,7 +582,7 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={26} />
           <input 
             className="w-full bg-slate-50 dark:bg-slate-950/50 pl-16 pr-8 py-6 rounded-3xl text-lg border-none focus:ring-2 focus:ring-orange-500 outline-none font-black text-slate-700 dark:text-white shadow-inner transition-all uppercase tracking-tight" 
-            placeholder="Buscar por sabor..." 
+            placeholder="Qual pizza vamos analisar hoje?" 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
           />
@@ -614,6 +616,13 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
             </div>
           </Card>
         ))}
+        {sabores.length === 0 && (
+          <div className="col-span-full py-24 flex-1 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-[40px] border-2 border-dashed border-slate-200 dark:border-slate-800 p-10 min-h-[400px]">
+            <Pizza size={90} className="text-slate-100 dark:text-slate-800 mb-8" />
+            <h3 className="text-slate-700 dark:text-slate-300 font-black text-2xl uppercase tracking-widest">Sem Receitas</h3>
+            <Button onClick={onAdd} icon={Plus} className="px-12 h-16 uppercase font-black tracking-widest shadow-2xl">Criar Receita</Button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -660,7 +669,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
 
   const copyFromSize = (sourceSize: string) => {
     if (sourceSize === activeSize) return;
-    if (!window.confirm(`Copiar ficha do tamanho ${sourceSize} para este tamanho?`)) return;
+    if (!window.confirm(`Deseja copiar a configuração do tamanho ${sourceSize}?`)) return;
     updateSizeField('ingredientes', JSON.parse(JSON.stringify(tamanhosConfig[sourceSize].ingredientes)));
   };
 
@@ -704,9 +713,9 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
         <div className="p-10 border-b dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0 text-center">
           <div className="flex items-center gap-6">
             <div className="bg-orange-600 p-4 rounded-[28px] text-white shadow-xl shadow-orange-600/30"><Pizza size={32} /></div>
-            <div>
+            <div className="text-left">
               <h3 className="text-3xl font-black uppercase text-orange-600 tracking-tighter leading-none">Ficha Técnica</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.4em] mt-2">Análise de Custos por Pizza</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.4em] mt-2">Detalhamento por Tamanho</p>
             </div>
           </div>
           <button onClick={onClose} className="p-5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-all shadow-xl"><X size={32}/></button>
@@ -716,7 +725,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 bg-slate-50 dark:bg-slate-800/30 p-12 rounded-[56px] shadow-inner text-center">
             <div className="space-y-4">
               <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Nome do Sabor</label>
-              <input className="w-full bg-white dark:bg-slate-950 p-6 rounded-[32px] outline-none focus:ring-2 focus:ring-orange-500 border-none font-black text-center text-2xl tracking-tighter" value={nome} onChange={e => setNome(e.target.value)} />
+              <input className="w-full bg-white dark:bg-slate-950 p-6 rounded-[32px] outline-none focus:ring-2 focus:ring-orange-500 border-none font-black text-center text-2xl tracking-tighter text-slate-700 dark:text-white" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Margherita" />
             </div>
             <div className="space-y-4">
               <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Fixo Estrutura (R$)</label>
@@ -748,9 +757,9 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
                 <h4 className="font-black uppercase tracking-[0.4em] text-xs text-slate-400">Montagem {activeSize}</h4>
                 <div className="flex gap-4 items-center">
                   <div className="hidden xl:flex gap-2 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-2xl">
-                    <span className="text-[9px] font-black text-slate-400 self-center uppercase mr-3 ml-2 tracking-widest opacity-60">Copiar:</span>
+                    <span className="text-[9px] font-black text-slate-400 self-center uppercase mr-3 ml-2 tracking-widest opacity-60">Copiar de:</span>
                     {TAMANHOS.filter(t => t !== activeSize).map(t => (
-                      <button key={t} onClick={() => copyFromSize(t)} className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-950 border dark:border-slate-800 rounded-xl text-[11px] font-black hover:bg-orange-50 transition-all text-slate-500">{t}</button>
+                      <button key={t} onClick={() => copyFromSize(t)} className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-950 border dark:border-slate-800 rounded-xl text-[11px] font-black hover:bg-orange-50 transition-all shadow-sm text-slate-500">{t}</button>
                     ))}
                   </div>
                   <Button variant="secondary" onClick={addIngrediente} icon={Plus} className="h-14 px-8 text-xs font-black">Novo Item</Button>
@@ -760,13 +769,13 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
               <div className="space-y-4">
                 {currentConfig.ingredientes.map((ing: any, idx: number) => (
                   <div key={idx} className="flex gap-4 items-center p-4 bg-slate-50 dark:bg-slate-950 rounded-[32px] border dark:border-slate-800 shadow-inner group transition-all">
-                    <select className="flex-1 bg-white dark:bg-slate-800 p-5 rounded-[24px] outline-none font-black text-lg transition-all focus:ring-2 focus:ring-orange-500 appearance-none text-slate-700 dark:text-white" value={ing.insumoId} onChange={e => updateIngrediente(idx, 'insumoId', e.target.value)}>
-                      <option value="">Escolher ingrediente...</option>
+                    <select className="flex-1 bg-white dark:bg-slate-800 p-5 rounded-[24px] outline-none font-black text-lg transition-all focus:ring-2 focus:ring-orange-500 appearance-none text-slate-700 dark:text-white shadow-sm border dark:border-slate-700/50" value={ing.insumoId} onChange={e => updateIngrediente(idx, 'insumoId', e.target.value)}>
+                      <option value="">Ingrediente...</option>
                       {insumos.map((i) => <option key={i.id} value={i.id}>{i.nome}</option>)}
                     </select>
                     <div className="flex gap-2 w-64 shrink-0">
                       <input type="number" className="w-full bg-white dark:bg-slate-800 p-5 rounded-[24px] outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-black text-center text-xl" value={ing.quantidade} onChange={e => updateIngrediente(idx, 'quantidade', Number(e.target.value))} />
-                      <select className="w-28 bg-white dark:bg-slate-800 p-5 rounded-[24px] text-[11px] font-black uppercase outline-none text-center" value={ing.unidade} onChange={e => updateIngrediente(idx, 'unidade', e.target.value)}>
+                      <select className="w-28 bg-white dark:bg-slate-800 p-5 rounded-[24px] text-[11px] font-black uppercase outline-none text-center shadow-sm border dark:border-slate-700/50" value={ing.unidade} onChange={e => updateIngrediente(idx, 'unidade', e.target.value)}>
                         {UNIDADES.map(u => <option key={u.id} value={u.id}>{u.id.toUpperCase()}</option>)}
                       </select>
                     </div>
@@ -776,9 +785,9 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
               </div>
               
               <div className="p-8 bg-orange-50/50 dark:bg-orange-950/10 rounded-[40px] border border-orange-100 dark:border-orange-900/30 flex justify-between items-center shadow-inner mt-12">
-                <div className="flex flex-col text-center sm:text-left">
-                  <label className="text-[11px] font-black text-orange-600 uppercase tracking-[0.3em] leading-none">Custo Embalagem</label>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase mt-3 tracking-widest opacity-60">{activeSize}</span>
+                <div className="flex flex-col">
+                  <label className="text-[11px] font-black text-orange-600 uppercase tracking-[0.3em] leading-none">Embalagem</label>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase mt-3 tracking-widest opacity-60">Tamanho {activeSize}</span>
                 </div>
                 <div className="relative">
                   <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg font-black text-orange-400 opacity-60">R$</span>
@@ -789,7 +798,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
 
             <Card className="p-12 bg-slate-900 text-white border-none shadow-2xl h-fit rounded-[56px] relative overflow-hidden flex flex-col gap-10">
               <div className="absolute -top-10 -right-10 opacity-5 rotate-12"><Calculator size={150}/></div>
-              <h4 className="font-black text-center border-b border-slate-800 pb-8 uppercase text-[12px] tracking-[0.6em] text-orange-500 relative z-10">Total de Custos {activeSize}</h4>
+              <h4 className="font-black text-center border-b border-slate-800 pb-8 uppercase text-[12px] tracking-[0.6em] text-orange-500 relative z-10">Consolidação {activeSize}</h4>
               <div className="space-y-8 relative z-10">
                 <div className="flex justify-between items-center text-sm text-slate-500 uppercase font-black tracking-widest"><span>Stock Bruto</span><span className="text-slate-100">{formatCurrency(calculatedStats[activeSize].custo_insumos)}</span></div>
                 <div className="flex justify-between items-center text-sm text-slate-500 uppercase font-black tracking-widest"><span>Embalagem</span><span className="text-slate-100">{formatCurrency(currentConfig.embalagem)}</span></div>
@@ -799,7 +808,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
                   <span className="text-6xl font-black text-orange-500 tracking-tighter">{formatCurrency(calculatedStats[activeSize].custo_total)}</span>
                 </div>
                 <div className="pt-12 border-t border-dashed border-slate-700 text-center flex flex-col gap-4">
-                  <div className="text-[11px] text-slate-400 font-black uppercase tracking-[0.5em]">Venda Sugerida (+{margemLucro}%)</div>
+                  <div className="text-[11px] text-slate-400 font-black uppercase tracking-[0.5em]">Sugerido (+{margemLucro}%)</div>
                   <div className="text-8xl font-black text-emerald-400 tracking-tighter drop-shadow-2xl">{formatCurrency(calculatedStats[activeSize].preco_sugerido)}</div>
                 </div>
               </div>
@@ -818,7 +827,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
           </div>
           <div className="flex gap-6 w-full xl:w-auto">
             <Button variant="ghost" className="font-black h-20 px-12 text-sm opacity-60" onClick={onClose}>Descartar</Button>
-            <Button onClick={handleFinalSave} icon={Save} className="px-20 h-20 font-black uppercase tracking-[0.2em] shadow-2xl flex-1 xl:flex-none text-xl">Salvar Receita</Button>
+            <Button onClick={handleFinalSave} icon={Save} className="px-20 h-20 font-black uppercase tracking-[0.2em] shadow-2xl flex-1 xl:flex-none text-xl">Gravar Receita</Button>
           </div>
         </div>
       </Card>
