@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { 
   getAuth, 
   signInAnonymously, 
@@ -15,8 +15,7 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  onSnapshot,
-  query
+  onSnapshot
 } from 'firebase/firestore';
 import { 
   LayoutDashboard, 
@@ -40,11 +39,13 @@ const getFirebaseConfig = () => {
   const envConfig = process.env.NEXT_PUBLIC_FIREBASE_CONFIG;
   if (!envConfig) return {};
   try {
-    // Tenta limpar caso o usuário tenha colado com "const firebaseConfig ="
-    const cleanJson = envConfig.includes('=') ? envConfig.split('=')[1].trim().replace(/;$/, '') : envConfig;
+    // Remove eventuais "const firebaseConfig =" ou ";" se o usuário colou errado
+    const cleanJson = envConfig.includes('{') 
+      ? envConfig.substring(envConfig.indexOf('{'), envConfig.lastIndexOf('}') + 1) 
+      : envConfig;
     return JSON.parse(cleanJson);
   } catch (e) {
-    console.error("Erro ao ler NEXT_PUBLIC_FIREBASE_CONFIG. Verifique se colou apenas o conteúdo entre { }", e);
+    console.error("Erro ao ler NEXT_PUBLIC_FIREBASE_CONFIG", e);
     return {};
   }
 };
@@ -175,6 +176,7 @@ export default function App() {
 
   const handleDelete = async (col: string, id: string) => {
     if (!window.confirm("Confirmar exclusão?")) return;
+    if (!user) return; // FIX: Verificação para o TypeScript não reclamar de user nulo
     await deleteDoc(doc(db, 'pizzarias', appId, 'users', user.uid, col, id));
   };
 
@@ -185,7 +187,7 @@ export default function App() {
       <nav className="w-full md:w-64 bg-white dark:bg-slate-900 border-b md:border-r border-slate-200 dark:border-slate-800 p-4 shrink-0">
         <div className="flex items-center gap-3 py-4 mb-6">
           <div className="bg-orange-600 p-2 rounded-lg text-white shadow-lg shadow-orange-600/20"><Pizza size={24} /></div>
-          <h1 className="font-bold text-xl tracking-tight">Didoka Pizza</h1>
+          <h1 className="font-bold text-xl tracking-tight text-orange-600">Didoka Pizza</h1>
         </div>
         <div className="space-y-1">
           <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} label="Dashboard" />
@@ -276,7 +278,7 @@ function Dashboard({ insumos, sabores }: any) {
           <TrendingUp size={32} className="text-blue-500 mb-2"/> 
           <h3 className="font-bold">Didoka Pizza Analytics</h3>
           <p className="text-sm text-slate-500 mt-2">
-            O seu CMV automático atualiza assim que você altera o preço de um insumo.
+            O seu CMV automático atualiza assim que altera o preço de um insumo.
           </p>
         </Card>
       </div>
@@ -318,11 +320,11 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
       </Card>
 
       {insumos.length === 0 ? (
-        <div className="py-20 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+        <div className="py-20 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
           <Package size={48} className="text-slate-200 dark:text-slate-700 mb-4" />
           <h3 className="text-slate-600 dark:text-slate-300 font-bold text-lg">Estoque Vazio</h3>
           <p className="text-slate-400 text-sm mb-6 max-w-xs">Cadastre os ingredientes básicos primeiro.</p>
-          <Button onClick={onAdd} icon={Plus} className="px-8">Adicionar Primeiro Insumo</Button>
+          <Button onClick={onAdd} icon={Plus} className="px-8">Adicionar Insumo</Button>
         </div>
       ) : (
         <Card className="overflow-hidden">
@@ -333,7 +335,7 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filtered.map((i: any) => (
-                  <tr key={i.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <tr key={i.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                     <td className="px-6 py-4 font-semibold">{i.nome}</td>
                     <td className="px-6 py-4 text-slate-500">{formatCurrency(i.preco_compra)}</td>
                     <td className="px-6 py-4 text-orange-600 font-bold">{formatCurrency(i.preco_por_unidade_base)}</td>
@@ -440,11 +442,10 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
           </Card>
         ))}
         {sabores.length === 0 && (
-          <div className="col-span-full py-20 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+          <div className="col-span-full py-20 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
             <Pizza size={48} className="text-slate-200 dark:text-slate-800 mb-4" />
             <h3 className="text-slate-600 dark:text-slate-300 font-bold text-lg">Sem Fichas Técnicas</h3>
-            <p className="text-slate-400 text-sm mb-6">Comece combinando seus insumos aqui.</p>
-            <Button onClick={onAdd} icon={Plus} className="px-8">Criar Primeiro Sabor</Button>
+            <Button onClick={onAdd} icon={Plus} className="mt-4 px-8">Criar Primeiro Sabor</Button>
           </div>
         )}
       </div>
@@ -630,7 +631,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
         <div className="p-6 border-t dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center shrink-0">
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
             {TAMANHOS.map(t => (
-              <div key={t} className={`flex flex-col px-4 border-r dark:border-slate-800 last:border-0 ${activeSize === t ? 'opacity-100 scale-110 origin-left transition-transform' : 'opacity-30'}`}>
+              <div key={t} className={`flex flex-col px-4 border-r dark:border-slate-800 last:border-0 transition-all ${activeSize === t ? 'opacity-100 scale-110 origin-left' : 'opacity-30'}`}>
                 <div className="text-[10px] text-slate-400 font-black uppercase">{t}</div>
                 <div className={`text-sm font-black ${activeSize === t ? 'text-orange-600' : ''}`}>{formatCurrency(calculatedStats[t].preco_sugerido)}</div>
               </div>
@@ -638,7 +639,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
           </div>
           <div className="flex gap-3">
             <Button variant="ghost" className="font-bold" onClick={onClose}>Cancelar</Button>
-            <Button onClick={handleFinalSave} icon={Save} className="px-10 h-12 font-black uppercase tracking-widest shadow-lg">Salvar Ficha</Button>
+            <Button onClick={handleFinalSave} icon={Save} className="px-10 h-12 font-black uppercase tracking-widest shadow-lg">Salvar Sabor</Button>
           </div>
         </div>
       </Card>
