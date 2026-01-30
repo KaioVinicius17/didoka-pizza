@@ -15,7 +15,8 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  onSnapshot
+  onSnapshot,
+  query
 } from 'firebase/firestore';
 import { 
   LayoutDashboard, 
@@ -34,23 +35,20 @@ import {
   Calculator 
 } from 'lucide-react';
 
-// --- CONFIGURAÇÃO FIREBASE SEGURA ---
-const getFirebaseConfig = () => {
-  const envConfig = process.env.NEXT_PUBLIC_FIREBASE_CONFIG;
-  if (!envConfig) return {};
-  try {
-    // Remove eventuais "const firebaseConfig =" ou ";" se o usuário colou errado
-    const cleanJson = envConfig.includes('{') 
-      ? envConfig.substring(envConfig.indexOf('{'), envConfig.lastIndexOf('}') + 1) 
-      : envConfig;
-    return JSON.parse(cleanJson);
-  } catch (e) {
-    console.error("Erro ao ler NEXT_PUBLIC_FIREBASE_CONFIG", e);
-    return {};
-  }
+// --- CONFIGURAÇÃO FIREBASE DIRETA ---
+// Kaio, preencha os valores abaixo com os dados do seu Console Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyCJPDGcKvWObK9b70TJaqWwq48s3wHiYqM",
+  authDomain: "didoka-pizza.firebaseapp.com",
+  projectId: "didoka-pizza",
+  storageBucket: "didoka-pizza.firebasestorage.app",
+  messagingSenderId: "431046628959",
+  appId: "1:431046628959:web:2a0dc49e6997dc012a2dea",
+  measurementId: "G-NBJYE1WG4Y"
 };
 
-const firebaseConfig = getFirebaseConfig();
+
+// Inicialização segura
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -67,18 +65,45 @@ const UNIDADES = [
 
 const TAMANHOS = ['P', 'M', 'G', 'F', 'GG'];
 
-const formatCurrency = (val: number | any) => {
+const formatCurrency = (val: number | string | undefined) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
 };
 
-// --- COMPONENTES DE UI ---
-
-interface CardProps {
-  children: React.ReactNode;
-  className?: string;
+// --- INTERFACES PARA TYPESCRIPT ---
+interface Insumo {
+  id: string;
+  nome: string;
+  preco_compra: number;
+  quantidade_compra: number;
+  unidade_compra: string;
+  preco_por_unidade_base: number;
 }
 
-const Card = ({ children, className = "" }: CardProps) => (
+interface IngredienteRef {
+  insumoId: string;
+  quantidade: number;
+  unidade: string;
+}
+
+interface TamanhoConfig {
+  ingredientes: IngredienteRef[];
+  embalagem: number;
+  custo_total?: number;
+  preco_sugerido?: number;
+  custo_insumos?: number;
+}
+
+interface Sabor {
+  id: string;
+  nome: string;
+  margem_lucro: number;
+  custo_operacional: number;
+  tamanhos_config: { [key: string]: TamanhoConfig };
+}
+
+// --- COMPONENTES DE UI ---
+
+const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <div className={`bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm ${className}`}>
     {children}
   </div>
@@ -110,8 +135,8 @@ const Button = ({ children, onClick, variant = "primary", className = "", disabl
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [insumos, setInsumos] = useState<any[]>([]);
-  const [sabores, setSabores] = useState<any[]>([]);
+  const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [sabores, setSabores] = useState<Sabor[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showInsumoModal, setShowInsumoModal] = useState(false);
@@ -135,11 +160,11 @@ export default function App() {
     const saboresRef = collection(db, 'pizzarias', appId, 'users', user.uid, 'sabores');
 
     const unsubInsumos = onSnapshot(insumosRef, (snap) => {
-      setInsumos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setInsumos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Insumo)));
     });
 
     const unsubSabores = onSnapshot(saboresRef, (snap) => {
-      setSabores(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setSabores(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sabor)));
       setLoading(false);
     });
 
@@ -176,7 +201,7 @@ export default function App() {
 
   const handleDelete = async (col: string, id: string) => {
     if (!window.confirm("Confirmar exclusão?")) return;
-    if (!user) return; // FIX: Verificação para o TypeScript não reclamar de user nulo
+    if (!user) return; 
     await deleteDoc(doc(db, 'pizzarias', appId, 'users', user.uid, col, id));
   };
 
@@ -231,12 +256,12 @@ function NavItem({ active, onClick, icon: Icon, label }: any) {
   );
 }
 
-function Dashboard({ insumos, sabores }: any) {
+function Dashboard({ insumos, sabores }: { insumos: Insumo[], sabores: Sabor[] }) {
   const stats = useMemo(() => {
     let totalPizzasConfiguradas = 0;
     let custoMedioTotal = 0;
     
-    sabores.forEach((s: any) => {
+    sabores.forEach((s) => {
       Object.keys(s.tamanhos_config || {}).forEach(t => {
         totalPizzasConfiguradas++;
         custoMedioTotal += s.tamanhos_config[t].custo_total || 0;
@@ -265,7 +290,7 @@ function Dashboard({ insumos, sabores }: any) {
         <Card className="p-6">
           <h3 className="font-bold mb-4 text-orange-600">Sugestões de Venda (Tamanho G)</h3>
           <div className="space-y-3">
-            {sabores.slice(0, 5).map((s: any) => (
+            {sabores.slice(0, 5).map((s) => (
               <div key={s.id} className="flex justify-between items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                 <span className="font-medium">{s.nome}</span>
                 <span className="text-orange-600 font-bold">{formatCurrency(s.tamanhos_config?.G?.preco_sugerido || 0)}</span>
@@ -276,9 +301,9 @@ function Dashboard({ insumos, sabores }: any) {
         </Card>
         <Card className="p-6 text-center flex flex-col items-center justify-center">
           <TrendingUp size={32} className="text-blue-500 mb-2"/> 
-          <h3 className="font-bold">Didoka Pizza Analytics</h3>
+          <h3 className="font-bold">CMV Automático</h3>
           <p className="text-sm text-slate-500 mt-2">
-            O seu CMV automático atualiza assim que altera o preço de um insumo.
+            Acompanhe o impacto da inflação dos insumos no seu lucro em tempo real.
           </p>
         </Card>
       </div>
@@ -296,9 +321,9 @@ function StatCard({ icon: Icon, label, value }: any) {
   );
 }
 
-function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
+function InsumosList({ insumos, onAdd, onEdit, onDelete }: { insumos: Insumo[], onAdd: () => void, onEdit: (i: Insumo) => void, onDelete: (id: string) => void }) {
   const [search, setSearch] = useState("");
-  const filtered = insumos.filter((i: any) => i.nome.toLowerCase().includes(search.toLowerCase()));
+  const filtered = insumos.filter((i) => i.nome.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-4">
@@ -320,11 +345,11 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
       </Card>
 
       {insumos.length === 0 ? (
-        <div className="py-20 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
+        <div className="py-20 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
           <Package size={48} className="text-slate-200 dark:text-slate-700 mb-4" />
           <h3 className="text-slate-600 dark:text-slate-300 font-bold text-lg">Estoque Vazio</h3>
           <p className="text-slate-400 text-sm mb-6 max-w-xs">Cadastre os ingredientes básicos primeiro.</p>
-          <Button onClick={onAdd} icon={Plus} className="px-8">Adicionar Insumo</Button>
+          <Button onClick={onAdd} icon={Plus} className="px-8">Adicionar Primeiro Insumo</Button>
         </div>
       ) : (
         <Card className="overflow-hidden">
@@ -334,7 +359,7 @@ function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
                 <tr><th className="px-6 py-4">Insumo</th><th className="px-6 py-4">Compra</th><th className="px-6 py-4">Unitário</th><th className="px-6 py-4 text-right">Ações</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map((i: any) => (
+                {filtered.map((i) => (
                   <tr key={i.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                     <td className="px-6 py-4 font-semibold">{i.nome}</td>
                     <td className="px-6 py-4 text-slate-500">{formatCurrency(i.preco_compra)}</td>
@@ -360,12 +385,12 @@ function InsumoFormModal({ initialData, onClose, onSave }: any) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95">
         <div className="p-6 flex justify-between border-b dark:border-slate-800">
-          <h3 className="text-lg font-bold">Ficha de Insumo</h3>
-          <button onClick={onClose}><X size={20}/></button>
+          <h3 className="text-lg font-bold">Dados do Insumo</h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={20}/></button>
         </div>
         <div className="p-6 space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-400 uppercase">Nome do Ingrediente</label>
+            <label className="text-xs font-bold text-slate-400 uppercase">Nome</label>
             <input className="w-full border dark:border-slate-700 bg-transparent p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-orange-500" placeholder="Ex: Queijo Muçarela" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -379,21 +404,21 @@ function InsumoFormModal({ initialData, onClose, onSave }: any) {
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-400 uppercase">Unidade de Medida</label>
+            <label className="text-xs font-bold text-slate-400 uppercase">Unidade</label>
             <select className="w-full border dark:border-slate-700 bg-transparent p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-orange-500" value={form.unidade_compra} onChange={e => setForm({...form, unidade_compra: e.target.value})}>
               {UNIDADES.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
           </div>
         </div>
-        <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-2 rounded-b-xl"><Button variant="ghost" onClick={onClose}>Cancelar</Button><Button onClick={() => onSave(form)} icon={Save}>Salvar Insumo</Button></div>
+        <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-2 rounded-b-xl border-t dark:border-slate-800"><Button variant="ghost" onClick={onClose}>Cancelar</Button><Button onClick={() => onSave(form)} icon={Save}>Salvar</Button></div>
       </Card>
     </div>
   );
 }
 
-function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
+function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: { sabores: Sabor[], insumos: Insumo[], onAdd: () => void, onEdit: (s: Sabor) => void, onDelete: (id: string) => void }) {
   const [search, setSearch] = useState("");
-  const filtered = useMemo(() => sabores.filter((s: any) => s.nome.toLowerCase().includes(search.toLowerCase())), [sabores, search]);
+  const filtered = useMemo(() => sabores.filter((s) => s.nome.toLowerCase().includes(search.toLowerCase())), [sabores, search]);
 
   return (
     <div className="space-y-4">
@@ -415,7 +440,7 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
       </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {filtered.map((s: any) => (
+        {filtered.map((s) => (
           <Card key={s.id} className="p-6 hover:shadow-lg transition-all group border-slate-200">
             <div className="flex justify-between items-start mb-4">
               <div className="flex flex-col gap-1">
@@ -453,7 +478,7 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
   );
 }
 
-function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
+function SaborFormModal({ initialData, insumos, onClose, onSave }: { initialData: Sabor | null, insumos: Insumo[], onClose: () => void, onSave: (data: any) => void }) {
   const [nome, setNome] = useState(initialData?.nome || '');
   const [margemLucro, setMargemLucro] = useState(initialData?.margem_lucro || 50);
   const [custoOperacional, setCustoOperacional] = useState(initialData?.custo_operacional || 5.00);
@@ -543,20 +568,19 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border dark:border-slate-800 shadow-inner">
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Sabor</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sabor</label>
               <input className="w-full border-none bg-white dark:bg-slate-900 p-2.5 rounded-lg focus:ring-2 focus:ring-orange-500 shadow-sm" value={nome} onChange={e => setNome(e.target.value)} />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Custo Operacional (R$)</label>
-              <input type="number" className="w-full border-none bg-white dark:bg-slate-900 p-2.5 rounded-lg font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 shadow-sm" value={custoOperacional} onChange={e => setCustoOperacional(e.target.value)} />
+              <input type="number" className="w-full border-none bg-white dark:bg-slate-900 p-2.5 rounded-lg font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 shadow-sm" value={custoOperacional} onChange={e => setCustoOperacional(Number(e.target.value))} />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Margem de Lucro (%)</label>
-              <input type="number" className="w-full border-none bg-white dark:bg-slate-900 p-2.5 rounded-lg font-bold text-emerald-600 focus:ring-2 focus:ring-emerald-500 shadow-sm" value={margemLucro} onChange={e => setMargemLucro(e.target.value)} />
+              <input type="number" className="w-full border-none bg-white dark:bg-slate-900 p-2.5 rounded-lg font-bold text-emerald-600 focus:ring-2 focus:ring-emerald-500 shadow-sm" value={margemLucro} onChange={e => setMargemLucro(Number(e.target.value))} />
             </div>
           </div>
 
-          {/* Seletor de Tamanhos - Corrigido para ser apenas letras */}
           <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full md:w-fit overflow-x-auto shadow-inner">
             {TAMANHOS.map(t => (
               <button 
@@ -589,22 +613,22 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
                   <div key={idx} className="flex gap-2 items-center p-3 bg-white dark:bg-slate-900 rounded-xl border dark:border-slate-800 shadow-sm hover:border-orange-200 transition-all">
                     <select className="flex-1 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-sm outline-none" value={ing.insumoId} onChange={e => updateIngrediente(idx, 'insumoId', e.target.value)}>
                       <option value="">Ingrediente...</option>
-                      {insumos.map((i: any) => <option key={i.id} value={i.id}>{i.nome}</option>)}
+                      {insumos.map((i) => <option key={i.id} value={i.id}>{i.nome}</option>)}
                     </select>
-                    <input type="number" className="w-20 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-sm font-bold text-center outline-none" value={ing.quantidade} onChange={e => updateIngrediente(idx, 'quantidade', e.target.value)} />
+                    <input type="number" className="w-20 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-sm font-bold text-center outline-none" value={ing.quantidade} onChange={e => updateIngrediente(idx, 'quantidade', Number(e.target.value))} />
                     <select className="w-16 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-[10px] font-black uppercase outline-none" value={ing.unidade} onChange={e => updateIngrediente(idx, 'unidade', e.target.value)}>
                       {UNIDADES.map(u => <option key={u.id} value={u.id}>{u.id.toUpperCase()}</option>)}
                     </select>
                     <button onClick={() => removeIngrediente(idx)} className="text-slate-300 hover:text-red-500 transition-all"><Trash2 size={18}/></button>
                   </div>
                 ))}
-                {currentConfig.ingredientes.length === 0 && <p className="text-center py-10 text-slate-400 italic text-sm border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl">Sem ingredientes definidos para este tamanho.</p>}
+                {currentConfig.ingredientes.length === 0 && <p className="text-center py-10 text-slate-400 italic text-sm border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl">Sem ingredientes para este tamanho.</p>}
               </div>
               <div className="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border dark:border-slate-800 flex justify-between items-center shadow-inner">
-                <label className="text-[10px] font-black text-slate-500 uppercase">Custo da Caixa ({activeSize})</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Custo Caixa ({activeSize})</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">R$</span>
-                  <input type="number" className="pl-8 pr-3 py-2 w-32 bg-white dark:bg-slate-900 border-none rounded-lg text-sm font-black outline-none focus:ring-2 focus:ring-orange-500 shadow-sm" value={currentConfig.embalagem} onChange={e => updateSizeField('embalagem', e.target.value)} />
+                  <input type="number" className="pl-8 pr-3 py-2 w-32 bg-white dark:bg-slate-900 border-none rounded-lg text-sm font-black outline-none focus:ring-2 focus:ring-orange-500 shadow-sm" value={currentConfig.embalagem} onChange={e => updateSizeField('embalagem', Number(e.target.value))} />
                 </div>
               </div>
             </div>
@@ -616,7 +640,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
                 <div className="flex justify-between items-center text-xs text-slate-500 uppercase font-bold"><span>Total Insumos</span><span>{formatCurrency(calculatedStats[activeSize].custo_insumos)}</span></div>
                 <div className="flex justify-between items-center text-xs text-slate-500 uppercase font-bold"><span>Taxa Operacional</span><span>{formatCurrency(Number(custoOperacional))}</span></div>
                 <div className="pt-4 border-t border-slate-800 flex flex-col items-center">
-                  <span className="text-[9px] text-slate-500 font-black uppercase mb-1">Custo Produção (CMV)</span>
+                  <span className="text-[9px] text-slate-500 font-black uppercase mb-1">Custo Final (CMV)</span>
                   <span className="text-3xl font-black text-orange-500">{formatCurrency(calculatedStats[activeSize].custo_total)}</span>
                 </div>
                 <div className="pt-8 border-t border-dashed border-slate-700 text-center">
@@ -631,7 +655,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
         <div className="p-6 border-t dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center shrink-0">
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
             {TAMANHOS.map(t => (
-              <div key={t} className={`flex flex-col px-4 border-r dark:border-slate-800 last:border-0 transition-all ${activeSize === t ? 'opacity-100 scale-110 origin-left' : 'opacity-30'}`}>
+              <div key={t} className={`flex flex-col px-4 border-r dark:border-slate-800 last:border-0 transition-all ${activeSize === t ? 'opacity-100 scale-110 origin-left border-orange-500' : 'opacity-30'}`}>
                 <div className="text-[10px] text-slate-400 font-black uppercase">{t}</div>
                 <div className={`text-sm font-black ${activeSize === t ? 'text-orange-600' : ''}`}>{formatCurrency(calculatedStats[t].preco_sugerido)}</div>
               </div>
