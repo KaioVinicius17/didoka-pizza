@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
 import { 
@@ -42,10 +44,12 @@ import {
   Sun,
   Moon,
   Gift,
-  Layers
+  PlusCircle,
+  MinusCircle
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO FIREBASE DIRETA ---
+// Kaio: Insira aqui os dados do seu Firebase Console
 const firebaseConfig = {
   apiKey: "AIzaSyCJPDGcKvWObK9b70TJaqWwq48s3wHiYqM",
   authDomain: "didoka-pizza.firebaseapp.com",
@@ -118,7 +122,7 @@ interface Combo {
   id: string;
   nome: string;
   itens: ComboItem[];
-  custo_extra: number; // Ex: Bebidas, taxas extras
+  custo_extra: number;
   margem_lucro: number;
   custo_total: number;
   preco_sugerido: number;
@@ -154,7 +158,7 @@ const Button = ({ children, onClick, variant = "primary", className = "", disabl
   );
 };
 
-// --- COMPONENTE DE LOGIN ---
+// --- TELA DE LOGIN ---
 
 function LoginScreen({ onLogged }: { onLogged: () => void }) {
   const [email, setEmail] = useState("");
@@ -169,64 +173,44 @@ function LoginScreen({ onLogged }: { onLogged: () => void }) {
     setLoading(true);
     setError("");
     try {
-      if (isRegistering) {
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
+      if (isRegistering) await createUserWithEmailAndPassword(auth, email, password);
+      else await signInWithEmailAndPassword(auth, email, password);
       onLogged();
-    } catch (err: any) {
-      setError("Falha na autenticação. Verifique os dados.");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: any) { setError("Falha na autenticação. Verifique os dados."); }
+    finally { setLoading(false); }
   };
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
-    setError("");
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
       onLogged();
-    } catch (err: any) {
-      setError("Falha ao entrar com o Google.");
-    } finally {
-      setGoogleLoading(false);
-    }
+    } catch (err: any) { setError("Falha ao entrar com o Google."); }
+    finally { setGoogleLoading(false); }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4 font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
       <Card className="w-full max-w-md p-10 shadow-2xl border-none">
-        <div className="flex flex-col items-center mb-10">
-          <div className="bg-orange-600 p-5 rounded-[32px] text-white mb-5 shadow-2xl shadow-orange-600/30">
-            <Pizza size={48} />
-          </div>
-          <h1 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter text-center leading-none tracking-widest">Didoka Pizza</h1>
-          <p className="text-slate-400 text-xs font-black uppercase tracking-[0.3em] mt-3">Gestão Profissional</p>
+        <div className="flex flex-col items-center mb-8">
+          <div className="bg-orange-600 p-5 rounded-3xl text-white mb-4 shadow-xl"><Pizza size={40} /></div>
+          <h1 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">Didoka Pizza</h1>
         </div>
-
         <div className="space-y-4">
-          <Button onClick={handleGoogleLogin} loading={googleLoading} variant="outline" className="w-full h-14 flex gap-3 border-slate-200 dark:border-slate-800">
+          <Button onClick={handleGoogleLogin} loading={googleLoading} variant="outline" className="w-full h-14 font-bold flex gap-3 border-slate-200 dark:border-slate-800">
             {!googleLoading && <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5.04c1.94 0 3.68.67 5.05 1.97l3.77-3.77C18.52 1.15 15.42 0 12 0 7.31 0 3.25 2.69 1.2 6.64l4.41 3.42C6.63 7.07 9.1 5.04 12 5.04z"/><path fill="#4285F4" d="M23.49 12.27c0-.8-.07-1.56-.19-2.27H12v4.51h6.47c-.28 1.48-1.13 2.74-2.4 3.58l4.41 3.42c2.58-2.38 4.01-5.88 4.01-9.24z"/><path fill="#FBBC05" d="M5.61 14.78c-.24-.72-.37-1.48-.37-2.28s.13-1.56.37-2.28L1.2 6.8c-.77 1.56-1.2 3.32-1.2 5.2s.43 3.64 1.2 5.2l4.41-3.42z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-4.41-3.42c-1.1.74-2.51 1.17-3.52 1.17-2.9 0-5.37-1.97-6.39-4.76L1.2 17.36C3.25 21.31 7.31 24 12 24z"/></svg>}
             Google
           </Button>
-
-          <div className="relative flex items-center justify-center py-2">
-            <div className="border-t border-slate-200 dark:border-slate-800 w-full"></div>
-            <span className="bg-white dark:bg-slate-900 px-4 text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] absolute">ou e-mail</span>
-          </div>
-
+          <div className="relative flex items-center justify-center py-2"><div className="border-t border-slate-200 dark:border-slate-800 w-full"></div><span className="bg-white dark:bg-slate-900 px-3 text-[10px] text-slate-400 font-black uppercase tracking-widest absolute">ou e-mail</span></div>
           <form onSubmit={handleAuth} className="space-y-4">
-            <input type="email" required placeholder="Utilizador" className="w-full bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-slate-700 dark:text-white transition-all" value={email} onChange={e => setEmail(e.target.value)} />
-            <input type="password" required placeholder="Senha" className="w-full bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-slate-700 dark:text-white transition-all" value={password} onChange={e => setPassword(e.target.value)} />
-            {error && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center">{error}</p>}
-            <Button loading={loading} className="w-full h-14">Aceder Sistema</Button>
+            <input type="email" required placeholder="E-mail" className="w-full bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold" value={email} onChange={e => setEmail(e.target.value)} />
+            <input type="password" required placeholder="Senha" className="w-full bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold" value={password} onChange={e => setPassword(e.target.value)} />
+            {error && <p className="text-red-500 text-xs font-bold text-center">{error}</p>}
+            <Button loading={loading} className="w-full h-14 font-black">Aceder</Button>
           </form>
         </div>
-
-        <button onClick={() => setIsRegistering(!isRegistering)} className="w-full text-center text-[10px] font-black text-slate-400 hover:text-orange-500 transition-all mt-10 uppercase tracking-[0.2em]">
+        <button onClick={() => setIsRegistering(!isRegistering)} className="w-full text-center text-xs font-black text-slate-400 hover:text-orange-500 transition-all mt-6 uppercase tracking-widest">
           {isRegistering ? "Já tem conta? Login" : "Nova conta? Registe-se"}
         </button>
       </Card>
@@ -237,6 +221,7 @@ function LoginScreen({ onLogged }: { onLogged: () => void }) {
 // --- COMPONENTE PRINCIPAL ---
 
 export default function App() {
+  // 1. DECLARAÇÃO DE ESTADOS (Todos no topo para evitar erros de referência)
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [insumos, setInsumos] = useState<Insumo[]>([]);
@@ -246,13 +231,12 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   
-  // Estado para edição centralizado no App
   const [editingItem, setEditingItem] = useState<any>(null);
   const [showInsumoModal, setShowInsumoModal] = useState(false);
   const [showSaborModal, setShowSaborModal] = useState(false);
   const [showComboModal, setShowComboModal] = useState(false);
 
-  // Tema
+  // 2. EFEITOS
   useEffect(() => {
     if (isDarkMode) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
@@ -266,16 +250,13 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Listeners Firestore
   useEffect(() => {
     if (!user) return;
     const path = (col: string) => collection(db, 'pizzarias', appId, 'users', user.uid, col);
 
     const unsubInsumos = onSnapshot(path('insumos'), (snap) => {
       setInsumos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Insumo)));
-    }, (err) => {
-       if (err.code === 'permission-denied') setError("Verifique as permissões do banco.");
-    });
+    }, (err) => { if (err.code === 'permission-denied') setError("Verifique as regras do Firebase."); });
 
     const unsubSabores = onSnapshot(path('sabores'), (snap) => {
       setSabores(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sabor)));
@@ -288,7 +269,7 @@ export default function App() {
     return () => { unsubInsumos(); unsubSabores(); unsubCombos(); };
   }, [user]);
 
-  // Handlers
+  // 3. HANDLERS (Definidos após os estados para garantir acesso)
   const handleSaveInsumo = async (data: any) => {
     if (!user) return;
     const colRef = collection(db, 'pizzarias', appId, 'users', user.uid, 'insumos');
@@ -330,7 +311,7 @@ export default function App() {
   };
 
   const handleDelete = async (col: string, id: string) => {
-    if (!window.confirm("Eliminar permanentemente?")) return;
+    if (!window.confirm("Deseja eliminar este item?")) return;
     if (!user) return; 
     await deleteDoc(doc(db, 'pizzarias', appId, 'users', user.uid, col, id));
   };
@@ -348,46 +329,43 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col md:flex-row transition-colors duration-300 font-sans">
       
       {/* Sidebar - Altura Total Fixa */}
-      <nav className="w-full md:w-80 bg-white dark:bg-slate-900 border-b md:border-r border-slate-200 dark:border-slate-800 p-8 shrink-0 shadow-2xl z-30 flex flex-col h-screen sticky top-0">
-        <div className="flex items-center justify-between mb-12">
-          <div className="flex items-center gap-4">
-            <div className="bg-orange-600 p-3 rounded-[20px] text-white shadow-xl shadow-orange-600/30"><Pizza size={30} /></div>
-            <div>
-              <h1 className="font-black text-2xl tracking-tighter text-slate-800 dark:text-white uppercase leading-none">Didoka</h1>
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 block opacity-60">Control Panel</span>
-            </div>
+      <nav className="w-full md:w-80 bg-white dark:bg-slate-900 border-b md:border-r border-slate-200 dark:border-slate-800 p-8 shrink-0 shadow-2xl z-30 flex flex-col md:h-screen md:sticky md:top-0">
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center gap-3">
+            <div className="bg-orange-600 p-2.5 rounded-xl text-white shadow-lg"><Pizza size={26} /></div>
+            <h1 className="font-black text-2xl tracking-tighter text-slate-800 dark:text-white uppercase leading-none">Didoka</h1>
           </div>
           <button 
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-orange-500 transition-all shadow-inner border dark:border-slate-700/50"
+            className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-orange-500 transition-all border dark:border-slate-700/50"
           >
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
         </div>
 
-        <div className="space-y-3 flex-1 overflow-y-auto pr-2 scrollbar-hide">
+        <div className="space-y-2 flex-1 overflow-y-auto scrollbar-hide">
           <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} label="Dashboard" />
           <NavItem active={activeTab === 'insumos'} onClick={() => setActiveTab('insumos')} icon={Package} label="Insumos" />
           <NavItem active={activeTab === 'sabores'} onClick={() => setActiveTab('sabores')} icon={ClipboardList} label="Fichas Técnicas" />
-          <NavItem active={activeTab === 'combos'} onClick={() => setActiveTab('combos')} icon={Gift} label="Combos & Promoções" />
+          <NavItem active={activeTab === 'combos'} onClick={() => setActiveTab('combos')} icon={Gift} label="Combos & Promo" />
         </div>
 
-        <div className="pt-8 border-t border-slate-100 dark:border-slate-800 mt-8">
-           <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-3xl mb-6 border dark:border-slate-800/50">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 leading-none">Conta</p>
-              <p className="text-xs font-black text-slate-700 dark:text-slate-200 truncate">{user.email}</p>
+        <div className="pt-8 border-t dark:border-slate-800 mt-8">
+           <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl mb-4 border dark:border-slate-800/50">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">Sessão Ativa</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{user.email}</p>
            </div>
            <button 
              onClick={() => signOut(auth)}
-             className="w-full flex items-center gap-4 px-6 py-4 rounded-[20px] text-[10px] font-black text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all uppercase tracking-widest border border-transparent hover:border-red-200/20"
+             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all uppercase tracking-widest"
            >
-             <LogOut size={20} /> Sair do Sistema
+             <LogOut size={16} /> Sair do Sistema
            </button>
         </div>
       </nav>
 
       {/* Conteúdo Principal */}
-      <main className="flex-1 p-6 md:p-14 overflow-y-auto bg-slate-50 dark:bg-slate-950">
+      <main className="flex-1 p-4 md:p-12 overflow-y-auto bg-slate-50 dark:bg-slate-950">
         {activeTab === 'dashboard' && <Dashboard insumos={insumos} sabores={sabores} combos={combos} />}
         {activeTab === 'insumos' && (
           <InsumosList 
@@ -427,39 +405,40 @@ export default function App() {
 
 function NavItem({ active, onClick, icon: Icon, label }: any) {
   return (
-    <button onClick={onClick} className={`w-full flex items-center gap-5 px-6 py-5 rounded-[24px] text-xs font-black transition-all uppercase tracking-widest ${active ? "bg-orange-600 text-white shadow-xl shadow-orange-600/30 scale-[1.02]" : "text-slate-500 hover:bg-white dark:hover:bg-slate-800 shadow-sm"}`}>
-      <Icon size={22} className={active ? "text-white" : "text-slate-400"} /> {label}
+    <button onClick={onClick} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-xs font-black transition-all uppercase tracking-widest ${active ? "bg-orange-600 text-white shadow-lg" : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"}`}>
+      <Icon size={20} /> {label}
     </button>
   );
 }
 
+// Componentes da Dashboard, InsumosList, SaboresList, etc... (Mantendo a estrutura premium e centralizada)
+
 function Dashboard({ insumos, sabores, combos }: { insumos: Insumo[], sabores: Sabor[], combos: Combo[] }) {
   const stats = useMemo(() => {
     let totalPizzas = 0;
-    let custoTotal = 0;
+    let custoAcumulado = 0;
     sabores.forEach((s) => {
       Object.keys(s.tamanhos_config || {}).forEach(t => {
         totalPizzas++;
-        custoTotal += s.tamanhos_config[t].custo_total || 0;
+        custoAcumulado += s.tamanhos_config[t].custo_total || 0;
       });
     });
     return {
       insumos: insumos.length,
       sabores: sabores.length,
       combos: combos.length,
-      totalPizzas,
-      custoMedio: totalPizzas > 0 ? custoTotal / totalPizzas : 0
+      custoMedio: totalPizzas > 0 ? custoAcumulado / totalPizzas : 0
     };
   }, [insumos, sabores, combos]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+    <div className="max-w-7xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700">
       <header>
-        <h2 className="text-5xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Dashboard</h2>
-        <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] mt-4">Gestão de CMV em Tempo Real</p>
+        <h2 className="text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">Painel de Controlo</h2>
+        <p className="text-slate-500 font-medium">Controle seu lucro em tempo real.</p>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard icon={Package} label="Insumos" value={stats.insumos} color="text-blue-500" />
         <StatCard icon={Pizza} label="Receitas" value={stats.sabores} color="text-orange-500" />
         <StatCard icon={Gift} label="Combos" value={stats.combos} color="text-pink-500" />
@@ -467,22 +446,21 @@ function Dashboard({ insumos, sabores, combos }: { insumos: Insumo[], sabores: S
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <Card className="p-10 border-none shadow-xl bg-white dark:bg-slate-900">
-          <h3 className="font-black text-xl mb-10 flex items-center gap-4 text-orange-600 uppercase tracking-widest border-b dark:border-slate-800 pb-6"><TrendingUp size={28}/> Rentabilidade (TAM G)</h3>
-          <div className="space-y-4">
+        <Card className="p-8 border-none shadow-xl bg-white dark:bg-slate-900">
+          <h3 className="font-black text-xl mb-8 flex items-center gap-3 text-orange-600 uppercase tracking-widest"><TrendingUp size={24}/> Rentabilidade (TAM G)</h3>
+          <div className="space-y-3">
             {sabores.slice(0, 5).map((s) => (
-              <div key={s.id} className="flex justify-between items-center p-6 rounded-[32px] bg-slate-50 dark:bg-slate-800/30 border dark:border-slate-800 transition-all hover:scale-[1.01]">
-                <span className="font-black text-slate-800 dark:text-slate-100 uppercase text-xs tracking-tight">{s.nome}</span>
-                <span className="text-orange-600 font-black text-xl tracking-tighter">{formatCurrency(s.tamanhos_config?.G?.preco_sugerido || 0)}</span>
+              <div key={s.id} className="flex justify-between items-center p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/30 border dark:border-slate-800">
+                <span className="font-black text-slate-800 dark:text-slate-200 uppercase text-xs">{s.nome}</span>
+                <span className="text-orange-600 font-black">{formatCurrency(s.tamanhos_config?.G?.preco_sugerido || 0)}</span>
               </div>
             ))}
           </div>
         </Card>
-        <Card className="p-10 flex flex-col items-center justify-center text-center bg-orange-600 text-white border-none shadow-2xl relative overflow-hidden group rounded-[48px]">
-          <div className="absolute -top-20 -right-20 opacity-10 group-hover:rotate-45 transition-transform duration-700"><Calculator size={300} /></div>
-          <div className="bg-white/20 p-8 rounded-full mb-8 shadow-inner relative z-10"><Pizza size={64} /></div>
-          <h3 className="font-black text-3xl uppercase mb-4 tracking-tight leading-none text-white">Combos Ativos</h3>
-          <p className="text-orange-50 font-bold max-w-xs leading-relaxed text-sm opacity-90 uppercase tracking-[0.2em]">Crie promoções imbatíveis sabendo exatamente o seu lucro em cada pacote.</p>
+        <Card className="p-8 flex flex-col items-center justify-center text-center bg-orange-600 text-white border-none shadow-2xl relative overflow-hidden group rounded-[40px]">
+          <div className="bg-white/20 p-6 rounded-full mb-6 shadow-inner"><Calculator size={50} /></div>
+          <h3 className="font-black text-2xl uppercase mb-3">Inteligência Financeira</h3>
+          <p className="text-orange-50 font-medium max-w-xs leading-relaxed text-sm">Crie combos e promoções sabendo exatamente quanto está a lucrar em cada venda.</p>
         </Card>
       </div>
     </div>
@@ -491,118 +469,116 @@ function Dashboard({ insumos, sabores, combos }: { insumos: Insumo[], sabores: S
 
 function StatCard({ icon: Icon, label, value, color }: any) {
   return (
-    <Card className="p-10 flex flex-col gap-4 transition-all hover:translate-y-[-8px] hover:shadow-2xl group border-none bg-white dark:bg-slate-900 shadow-xl rounded-[40px]">
-      <div className={`bg-slate-50 dark:bg-slate-800 p-4 w-fit rounded-[24px] ${color} shadow-sm group-hover:bg-white dark:group-hover:bg-slate-700 transition-colors`}><Icon size={30} /></div>
-      <div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em] mt-2 leading-none">{label}</div>
-      <div className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">{value}</div>
+    <Card className="p-8 flex flex-col gap-3 transition-all hover:scale-[1.03] group border-none shadow-md">
+      <div className={`bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl ${color}`}><Icon size={24} /></div>
+      <div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-2">{label}</div>
+      <div className="text-3xl font-black text-slate-800 dark:text-white tracking-tighter">{value}</div>
     </Card>
   );
 }
 
+// --- LISTAGEM DE INSUMOS ---
 function InsumosList({ insumos, onAdd, onEdit, onDelete }: any) {
   const [search, setSearch] = useState("");
   const filtered = insumos.filter((i: any) => i.nome.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="max-w-7xl mx-auto space-y-10 animate-in fade-in duration-700 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8">
-        <h2 className="text-5xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Insumos</h2>
-        <Button onClick={onAdd} icon={Plus} className="w-full sm:w-auto h-16 px-12 text-sm">Adicionar Insumo</Button>
+    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in h-full flex flex-col">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+        <h2 className="text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">Insumos</h2>
+        <Button onClick={onAdd} icon={Plus} className="w-full sm:w-auto h-14 px-10">Novo Insumo</Button>
       </div>
 
-      <Card className="p-5 border-none shadow-xl bg-white dark:bg-slate-900 rounded-[32px]">
+      <Card className="p-4 border-none shadow-md">
         <div className="relative">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={26} />
-          <input 
-            className="w-full bg-slate-50 dark:bg-slate-950/50 pl-16 pr-8 py-6 rounded-3xl text-lg border-none focus:ring-2 focus:ring-orange-500 outline-none font-black text-slate-700 dark:text-white shadow-inner transition-all uppercase tracking-tight" 
-            placeholder="Pesquisar ingrediente..." 
-            value={search} 
-            onChange={e => setSearch(e.target.value)} 
-          />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <input className="w-full bg-slate-50 dark:bg-slate-950/50 pl-12 pr-6 py-4 rounded-2xl text-base border-none focus:ring-2 focus:ring-orange-500 outline-none font-bold text-slate-700 dark:text-white" placeholder="O que está a procurar?" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </Card>
 
-      <Card className="overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-900 rounded-[48px]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 font-black text-slate-400 uppercase text-[10px] tracking-[0.4em]">
-              <tr>
-                <th className="px-12 py-8">Designação</th>
-                <th className="px-12 py-8 text-center">Compra</th>
-                <th className="px-12 py-8 text-center">Unitário Base</th>
-                <th className="px-12 py-8 text-right">Gerir</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-              {filtered.map((i: any) => (
-                <tr key={i.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all group">
-                  <td className="px-12 py-10 font-black text-slate-800 dark:text-slate-200 uppercase text-xs tracking-tight">{i.nome}</td>
-                  <td className="px-12 py-10 text-center text-slate-500 font-black text-lg tracking-tighter">{formatCurrency(i.preco_compra)} <span className="text-[10px] opacity-40 font-bold ml-2 uppercase">Pack {i.quantidade_compra}{i.unidade_compra}</span></td>
-                  <td className="px-12 py-10 text-center">
-                    <div className="flex flex-col items-center">
-                      <span className="text-orange-600 font-black text-2xl tracking-tighter leading-none">{formatCurrency(i.preco_por_unidade_base)}</span>
-                      <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-2">por {i.unidade_compra === 'un' ? 'un' : (i.unidade_compra === 'kg' ? 'g' : 'ml')}</span>
-                    </div>
-                  </td>
-                  <td className="px-12 py-10 text-right">
-                    <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
-                      <button onClick={() => onEdit(i)} className="p-4 text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/50 rounded-[24px]"><Edit3 size={24}/></button>
-                      <button onClick={() => onDelete(i.id)} className="p-4 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-[24px]"><Trash2 size={24}/></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={4} className="py-20 text-center text-slate-400 uppercase font-black text-[10px] tracking-widest italic">Nenhum resultado encontrado.</td></tr>
-              )}
-            </tbody>
-          </table>
+      {insumos.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-[40px] border-4 border-dashed border-slate-100 dark:border-slate-800 p-10 min-h-[400px]">
+          <Package size={80} className="text-slate-100 dark:text-slate-800 mb-8" />
+          <h3 className="text-slate-700 dark:text-slate-300 font-black text-2xl uppercase tracking-widest">Sem Stock</h3>
+          <Button onClick={onAdd} icon={Plus} className="px-12 h-16 mt-6 uppercase font-black tracking-widest shadow-2xl">Cadastrar Insumo</Button>
         </div>
-      </Card>
+      ) : (
+        <Card className="overflow-hidden border-none shadow-xl bg-white dark:bg-slate-900 rounded-[32px]">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-800/50 font-black text-slate-400 uppercase text-[10px] tracking-[0.4em]">
+                <tr><th className="px-10 py-6">Ingrediente</th><th className="px-10 py-6 text-center">Compra</th><th className="px-10 py-6 text-center">Unitário Base</th><th className="px-10 py-6 text-right">Ações</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                {filtered.map((i: any) => (
+                  <tr key={i.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all group font-medium">
+                    <td className="px-10 py-8 font-black text-slate-800 dark:text-slate-200 uppercase text-xs">{i.nome}</td>
+                    <td className="px-10 py-8 text-center text-slate-500">{formatCurrency(i.preco_compra)} <span className="text-[9px] font-bold">({i.quantidade_compra}{i.unidade_compra})</span></td>
+                    <td className="px-10 py-8 text-center">
+                      <div className="flex flex-col items-center">
+                        <span className="text-orange-600 font-black text-lg">{formatCurrency(i.preco_por_unidade_base)}</span>
+                        <span className="text-[9px] text-slate-400 uppercase tracking-widest">por {i.unidade_compra === 'kg' ? 'grama' : i.unidade_compra}</span>
+                      </div>
+                    </td>
+                    <td className="px-10 py-8 text-right">
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => onEdit(i)} className="p-3 text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/50 rounded-2xl"><Edit3 size={20}/></button>
+                        <button onClick={() => handleDelete('insumos', i.id)} className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-2xl"><Trash2 size={20}/></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
 
+// --- FORMULÁRIO DE INSUMO ---
 function InsumoFormModal({ initialData, onClose, onSave }: any) {
   const [form, setForm] = useState(initialData || { nome: '', preco_compra: '', quantidade_compra: '', unidade_compra: 'kg' });
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-2xl p-4 animate-in fade-in duration-500">
-      <Card className="w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-300 border-none overflow-hidden rounded-[48px] bg-white dark:bg-slate-900">
-        <div className="p-10 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 border-b dark:border-slate-800">
-          <h3 className="font-black uppercase tracking-[0.3em] text-[10px] text-slate-500">Cadastro de Insumo</h3>
-          <button onClick={onClose} className="p-4 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-all shadow-md"><X size={24}/></button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-300">
+      <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-300 border-none overflow-hidden rounded-[40px] bg-white dark:bg-slate-900">
+        <div className="p-8 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 border-b dark:border-slate-800">
+          <h3 className="font-black uppercase tracking-widest text-[10px] text-slate-500">Registo de Insumo</h3>
+          <button onClick={onClose} className="p-3 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-all"><X size={24}/></button>
         </div>
-        <div className="p-12 space-y-10">
-          <div className="space-y-4 text-center">
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Nome do Ingrediente</label>
-            <input className="w-full bg-slate-50 dark:bg-slate-950 p-6 rounded-[24px] outline-none focus:ring-2 focus:ring-orange-500 shadow-inner border-none font-black text-center text-2xl tracking-tighter" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} />
+        <div className="p-10 space-y-8">
+          <div className="space-y-2 text-center">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Nome</label>
+            <input className="w-full bg-slate-50 dark:bg-slate-950 p-5 rounded-3xl outline-none focus:ring-2 focus:ring-orange-500 shadow-inner border-none font-bold text-center text-xl" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} />
           </div>
-          <div className="grid grid-cols-2 gap-8">
-            <div className="space-y-4 text-center">
-              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Preço Pago</label>
-              <input type="number" className="w-full bg-slate-50 dark:bg-slate-950 p-6 rounded-[24px] outline-none focus:ring-2 focus:ring-orange-500 shadow-inner border-none font-black text-center text-2xl text-orange-600 tracking-tighter" value={form.preco_compra} onChange={e => setForm({...form, preco_compra: e.target.value})} />
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-2 text-center">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Preço</label>
+              <input type="number" className="w-full bg-slate-50 dark:bg-slate-950 p-5 rounded-3xl outline-none focus:ring-2 focus:ring-orange-500 shadow-inner border-none font-black text-center text-xl text-orange-600" value={form.preco_compra} onChange={e => setForm({...form, preco_compra: e.target.value})} />
             </div>
-            <div className="space-y-4 text-center">
-              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Qtd Pack</label>
-              <input type="number" className="w-full bg-slate-50 dark:bg-slate-950 p-6 rounded-[24px] outline-none focus:ring-2 focus:ring-orange-500 shadow-inner border-none font-black text-center text-2xl tracking-tighter" value={form.quantidade_compra} onChange={e => setForm({...form, quantidade_compra: e.target.value})} />
+            <div className="space-y-2 text-center">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Quantidade</label>
+              <input type="number" className="w-full bg-slate-50 dark:bg-slate-950 p-5 rounded-3xl outline-none focus:ring-2 focus:ring-orange-500 shadow-inner border-none font-black text-center text-xl" value={form.quantidade_compra} onChange={e => setForm({...form, quantidade_compra: e.target.value})} />
             </div>
           </div>
-          <div className="space-y-4 text-center">
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Unidade</label>
-            <select className="w-full bg-slate-50 dark:bg-slate-950 p-6 rounded-[24px] outline-none focus:ring-2 focus:ring-orange-500 shadow-inner border-none font-black text-center text-lg tracking-[0.2em] appearance-none" value={form.unidade_compra} onChange={e => setForm({...form, unidade_compra: e.target.value})}>
+          <div className="space-y-2 text-center">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Unidade</label>
+            <select className="w-full bg-slate-50 dark:bg-slate-950 p-5 rounded-3xl outline-none focus:ring-2 focus:ring-orange-500 shadow-inner border-none font-black appearance-none text-center text-lg" value={form.unidade_compra} onChange={e => setForm({...form, unidade_compra: e.target.value})}>
               {UNIDADES.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
           </div>
         </div>
-        <div className="p-10 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-5 border-t dark:border-slate-800">
-          <Button variant="ghost" onClick={onClose} className="px-10 font-black">Descartar</Button>
-          <Button onClick={() => onSave(form)} icon={Save} className="px-16 h-20 text-lg shadow-2xl">Gravar Insumo</Button>
+        <div className="p-8 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-4 border-t dark:border-slate-800">
+          <Button variant="ghost" onClick={onClose} className="px-10 font-black uppercase text-[10px]">Cancelar</Button>
+          <Button onClick={() => onSave(form)} icon={Save} className="px-16 h-18 uppercase font-black tracking-widest text-base shadow-2xl">Gravar</Button>
         </div>
       </Card>
     </div>
   );
 }
 
+// --- LISTAGEM DE SABORES ---
 function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
   const [search, setSearch] = useState("");
   const filtered = useMemo(() => sabores.filter((s: any) => s.nome.toLowerCase().includes(search.toLowerCase())), [sabores, search]);
@@ -610,19 +586,14 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
   return (
     <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in duration-700 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8">
-        <h2 className="text-5xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Fichas Técnicas</h2>
-        <Button onClick={onAdd} icon={Plus} className="w-full sm:w-auto h-16 px-12 text-sm">Nova Receita</Button>
+        <h2 className="text-5xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Sabores</h2>
+        <Button onClick={onAdd} icon={Plus} className="w-full sm:w-auto h-16 px-12 text-sm">Nova Pizza</Button>
       </div>
 
       <Card className="p-5 border-none shadow-xl bg-white dark:bg-slate-900 rounded-[32px]">
         <div className="relative">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={26} />
-          <input 
-            className="w-full bg-slate-50 dark:bg-slate-950/50 pl-16 pr-8 py-6 rounded-3xl text-lg border-none focus:ring-2 focus:ring-orange-500 outline-none font-black text-slate-700 dark:text-white shadow-inner transition-all uppercase tracking-tight" 
-            placeholder="Qual pizza vamos analisar hoje?" 
-            value={search} 
-            onChange={e => setSearch(e.target.value)} 
-          />
+          <input className="w-full bg-slate-50 dark:bg-slate-950/50 pl-16 pr-8 py-6 rounded-3xl text-lg border-none focus:ring-2 focus:ring-orange-500 outline-none font-black text-slate-700 dark:text-white shadow-inner transition-all uppercase tracking-tight" placeholder="Buscar por sabor..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </Card>
 
@@ -635,7 +606,7 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
                 <div className="flex flex-wrap gap-3">
                    {TAMANHOS.map(t => (
                      s.tamanhos_config?.[t] && 
-                     <div key={t} className="flex flex-col bg-slate-50 dark:bg-slate-800/80 border dark:border-slate-700 px-6 py-4 rounded-[28px] min-w-[90px] text-center shadow-md group-hover:scale-105 transition-transform">
+                     <div key={t} className="flex flex-col bg-slate-50 dark:bg-slate-800/80 border dark:border-slate-700 px-6 py-4 rounded-[28px] min-w-[90px] text-center shadow-md">
                        <span className="text-[11px] text-slate-400 font-black uppercase tracking-widest leading-none mb-2">{t}</span>
                        <span className="text-sm font-black text-slate-800 dark:text-slate-100 tracking-tighter">{formatCurrency(s.tamanhos_config[t].preco_sugerido)}</span>
                      </div>
@@ -644,11 +615,11 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
               </div>
               <div className="flex gap-2 shrink-0">
                 <button onClick={() => onEdit(s)} className="p-4 text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/50 rounded-[24px] transition-all shadow-sm"><Edit3 size={28}/></button>
-                <button onClick={() => onDelete(s.id)} className="p-4 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-[24px] transition-all shadow-sm"><Trash2 size={28}/></button>
+                <button onClick={() => onDelete('sabores', s.id)} className="p-4 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-[24px] transition-all shadow-sm"><Trash2 size={28}/></button>
               </div>
             </div>
             <div className="pt-10 border-t dark:border-slate-800 flex justify-between items-center text-[10px] uppercase font-black tracking-[0.3em] text-slate-400">
-              <span>Lucro: <span className="text-emerald-500 font-black">{s.margem_lucro}%</span></span>
+              <span>Lucro Alvo: <span className="text-emerald-500 font-black">{s.margem_lucro}%</span></span>
               <span>Estrutura: <span className="text-blue-500 font-black">{formatCurrency(s.custo_operacional)}</span></span>
             </div>
           </Card>
@@ -658,6 +629,7 @@ function SaboresList({ sabores, insumos, onAdd, onEdit, onDelete }: any) {
   );
 }
 
+// --- FORMULÁRIO DE SABOR ---
 function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
   const [nome, setNome] = useState(initialData?.nome || '');
   const [margemLucro, setMargemLucro] = useState(initialData?.margem_lucro || 50);
@@ -675,10 +647,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
   const currentConfig = tamanhosConfig[activeSize];
 
   const updateSizeField = (field: string, value: any) => {
-    setTamanhosConfig({
-      ...tamanhosConfig,
-      [activeSize]: { ...currentConfig, [field]: value }
-    });
+    setTamanhosConfig({ ...tamanhosConfig, [activeSize]: { ...currentConfig, [field]: value } });
   };
 
   const addIngrediente = () => {
@@ -809,15 +778,15 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
                         {UNIDADES.map(u => <option key={u.id} value={u.id}>{u.id.toUpperCase()}</option>)}
                       </select>
                     </div>
-                    <button onClick={() => removeIngrediente(idx)} className="p-4 text-slate-300 hover:text-red-500 transition-all hover:rotate-12"><Trash2 size={28}/></button>
+                    <button onClick={() => removeIngrediente(idx)} className="p-4 text-slate-300 hover:text-red-500 transition-all"><Trash2 size={28}/></button>
                   </div>
                 ))}
               </div>
               
               <div className="p-8 bg-orange-50/50 dark:bg-orange-950/10 rounded-[40px] border border-orange-100 dark:border-orange-900/30 flex justify-between items-center shadow-inner mt-12">
-                <div className="flex flex-col">
-                  <label className="text-[11px] font-black text-orange-600 uppercase tracking-[0.3em] leading-none">Custo da Caixa</label>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase mt-3 tracking-widest opacity-60">Tamanho {activeSize}</span>
+                <div className="flex flex-col text-center sm:text-left">
+                  <label className="text-[11px] font-black text-orange-600 uppercase tracking-[0.3em] leading-none">Custo Embalagem</label>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase mt-3 tracking-widest opacity-60">{activeSize}</span>
                 </div>
                 <div className="relative">
                   <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg font-black text-orange-400 opacity-60">R$</span>
@@ -828,7 +797,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
 
             <Card className="p-12 bg-slate-900 text-white border-none shadow-2xl h-fit rounded-[56px] relative overflow-hidden flex flex-col gap-10">
               <div className="absolute -top-10 -right-10 opacity-5 rotate-12"><Calculator size={150}/></div>
-              <h4 className="font-black text-center border-b border-slate-800 pb-8 uppercase text-[12px] tracking-[0.6em] text-orange-500 relative z-10">Consolidação {activeSize}</h4>
+              <h4 className="font-black text-center border-b border-slate-800 pb-8 uppercase text-[12px] tracking-[0.6em] text-orange-500 relative z-10">Total de Custos {activeSize}</h4>
               <div className="space-y-8 relative z-10">
                 <div className="flex justify-between items-center text-sm text-slate-500 uppercase font-black tracking-widest"><span>Stock Bruto</span><span className="text-slate-100">{formatCurrency(calculatedStats[activeSize].custo_insumos)}</span></div>
                 <div className="flex justify-between items-center text-sm text-slate-500 uppercase font-black tracking-widest"><span>Embalagem</span><span className="text-slate-100">{formatCurrency(currentConfig.embalagem)}</span></div>
@@ -865,8 +834,7 @@ function SaborFormModal({ initialData, insumos, onClose, onSave }: any) {
   );
 }
 
-// --- NOVO COMPONENTE: LISTA DE COMBOS ---
-
+// --- LISTAGEM DE COMBOS ---
 function CombosList({ combos, sabores, onAdd, onEdit, onDelete }: any) {
   const [search, setSearch] = useState("");
   const filtered = combos.filter((c: any) => c.nome.toLowerCase().includes(search.toLowerCase()));
@@ -874,19 +842,14 @@ function CombosList({ combos, sabores, onAdd, onEdit, onDelete }: any) {
   return (
     <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in duration-700">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8">
-        <h2 className="text-5xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Combos & Promoções</h2>
+        <h2 className="text-5xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Combos & Promo</h2>
         <Button onClick={onAdd} icon={Gift} className="w-full sm:w-auto h-16 px-12 text-sm">Novo Combo</Button>
       </div>
 
       <Card className="p-5 border-none shadow-xl bg-white dark:bg-slate-900 rounded-[32px]">
         <div className="relative">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={26} />
-          <input 
-            className="w-full bg-slate-50 dark:bg-slate-950/50 pl-16 pr-8 py-6 rounded-3xl text-lg border-none focus:ring-2 focus:ring-pink-500 outline-none font-black text-slate-700 dark:text-white shadow-inner transition-all uppercase tracking-tight" 
-            placeholder="Pesquisar promoções..." 
-            value={search} 
-            onChange={e => setSearch(e.target.value)} 
-          />
+          <input className="w-full bg-slate-50 dark:bg-slate-950/50 pl-16 pr-8 py-6 rounded-3xl text-lg border-none focus:ring-2 focus:ring-pink-500 outline-none font-black text-slate-700 dark:text-white shadow-inner transition-all uppercase tracking-tight" placeholder="Procurar promoções..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </Card>
 
@@ -912,16 +875,16 @@ function CombosList({ combos, sabores, onAdd, onEdit, onDelete }: any) {
               </div>
               <div className="flex gap-2 shrink-0">
                 <button onClick={() => onEdit(c)} className="p-4 text-slate-400 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-950/50 rounded-[24px] transition-all shadow-sm"><Edit3 size={28}/></button>
-                <button onClick={() => onDelete(c.id)} className="p-4 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-[24px] transition-all shadow-sm"><Trash2 size={28}/></button>
+                <button onClick={() => onDelete('combos', c.id)} className="p-4 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-[24px] transition-all shadow-sm"><Trash2 size={28}/></button>
               </div>
             </div>
             <div className="pt-8 border-t dark:border-slate-800 flex justify-between items-end">
               <div>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Custo Total</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Custo Produção</p>
                 <p className="text-xl font-black text-slate-700 dark:text-slate-300 tracking-tighter">{formatCurrency(c.custo_total)}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-pink-500 font-black uppercase tracking-widest mb-1">Preço Sugerido</p>
+                <p className="text-[10px] text-pink-500 font-black uppercase tracking-widest mb-1 font-black">Preço Sugerido</p>
                 <p className="text-4xl font-black text-pink-600 tracking-tighter">{formatCurrency(c.preco_sugerido)}</p>
               </div>
             </div>
@@ -930,9 +893,9 @@ function CombosList({ combos, sabores, onAdd, onEdit, onDelete }: any) {
         {combos.length === 0 && (
           <div className="col-span-full py-24 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-[40px] border-4 border-dashed border-slate-100 dark:border-slate-800 p-10 min-h-[400px]">
             <Gift size={90} className="text-slate-100 dark:text-slate-800 mb-8" />
-            <h3 className="text-slate-700 dark:text-slate-300 font-black text-2xl uppercase tracking-widest">Sem Combos</h3>
-            <p className="text-slate-400 text-sm mb-10 max-w-sm font-bold uppercase tracking-widest">Simule custos de promoções e combos de família.</p>
-            <Button onClick={onAdd} icon={Plus} className="px-12 h-16 uppercase font-black tracking-widest shadow-2xl">Criar Promoção</Button>
+            <h3 className="text-slate-700 dark:text-slate-300 font-black text-2xl uppercase tracking-widest">Sem Promoções</h3>
+            <p className="text-slate-400 text-sm mb-10 max-w-sm font-bold uppercase tracking-widest">Crie combos selecionando as pizzas já criadas e bebidas.</p>
+            <Button onClick={onAdd} icon={Plus} className="px-12 h-16 uppercase font-black tracking-widest shadow-2xl">Criar Combo</Button>
           </div>
         )}
       </div>
@@ -940,8 +903,7 @@ function CombosList({ combos, sabores, onAdd, onEdit, onDelete }: any) {
   );
 }
 
-// --- NOVO COMPONENTE: MODAL DE COMBO ---
-
+// --- MODAL DE COMBO ---
 function ComboFormModal({ initialData, sabores, onClose, onSave }: any) {
   const [nome, setNome] = useState(initialData?.nome || '');
   const [itens, setItens] = useState<ComboItem[]>(initialData?.itens || [{ saborId: '', tamanho: 'G', quantidade: 1 }]);
@@ -983,12 +945,12 @@ function ComboFormModal({ initialData, sabores, onClose, onSave }: any) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-2xl p-4 animate-in fade-in duration-500 font-sans">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-2xl p-4 animate-in fade-in duration-500">
       <Card className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 border-none shadow-2xl rounded-[48px] bg-white dark:bg-slate-900">
         <div className="p-8 border-b dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0">
           <div className="flex items-center gap-4">
-            <div className="bg-pink-600 p-3 rounded-2xl text-white shadow-lg shadow-pink-600/30"><Gift size={24} /></div>
-            <h3 className="text-2xl font-black uppercase text-pink-600 tracking-tighter leading-none">Simulador de Combo</h3>
+            <div className="bg-pink-600 p-3 rounded-2xl text-white shadow-lg"><Gift size={24} /></div>
+            <h3 className="text-2xl font-black uppercase text-pink-600 tracking-tighter">Novo Combo</h3>
           </div>
           <button onClick={onClose} className="p-3 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-all"><X size={24}/></button>
         </div>
@@ -997,14 +959,14 @@ function ComboFormModal({ initialData, sabores, onClose, onSave }: any) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 dark:bg-slate-800/30 p-8 rounded-[40px] shadow-inner">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center block">Nome do Combo</label>
-              <input className="w-full bg-white dark:bg-slate-950 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-pink-500 border-none font-bold text-center" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Combo Casal" />
+              <input className="w-full bg-white dark:bg-slate-950 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-pink-500 border-none font-bold text-center" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Combo Didoka 1" />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center block">Extras (Bebida/Tx)</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center block">Extras (Bebidas)</label>
               <input type="number" className="w-full bg-white dark:bg-slate-950 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-pink-500 border-none font-black text-center text-blue-500" value={custoExtra} onChange={e => setCustoExtra(Number(e.target.value))} />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center block">Margem Alvo (%)</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center block">Lucro (%)</label>
               <input type="number" className="w-full bg-white dark:bg-slate-950 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-pink-500 border-none font-black text-center text-emerald-500" value={margemLucro} onChange={e => setMargemLucro(Number(e.target.value))} />
             </div>
           </div>
@@ -1012,7 +974,7 @@ function ComboFormModal({ initialData, sabores, onClose, onSave }: any) {
           <div className="space-y-6">
             <div className="flex justify-between items-center border-b dark:border-slate-800 pb-4">
               <h4 className="font-black uppercase tracking-widest text-xs text-slate-400">Pizzas Inclusas</h4>
-              <Button variant="secondary" onClick={addItem} icon={Plus} className="text-[10px] h-8 px-4 font-black">Adicionar Pizza</Button>
+              <Button variant="secondary" onClick={addItem} icon={Plus} className="text-[10px] h-8 px-4 font-black">Add</Button>
             </div>
 
             <div className="space-y-3">
@@ -1036,11 +998,11 @@ function ComboFormModal({ initialData, sabores, onClose, onSave }: any) {
         <div className="p-10 border-t dark:border-slate-800 bg-slate-900 text-white flex flex-col md:flex-row justify-between items-center gap-10 shrink-0">
           <div className="flex gap-12">
             <div className="text-center">
-              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Custo de Produção</p>
+              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Custo Base</p>
               <p className="text-3xl font-black text-orange-500 tracking-tighter">{formatCurrency(calculatedStats.custoTotal)}</p>
             </div>
             <div className="text-center">
-              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Venda Sugerida</p>
+              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2 font-black text-emerald-400">Preço Venda</p>
               <p className="text-5xl font-black text-emerald-400 tracking-tighter drop-shadow-xl">{formatCurrency(calculatedStats.precoSugerido)}</p>
             </div>
           </div>
